@@ -27,14 +27,16 @@ namespace ssms.DataClasses
 		public int iErrorTagInWrite{get; set;}
 		public int iErrorTagInCheck{get; set;}
 
-		public int iErrorInProcess{get; set;}
+		public int iErrorInRead{get; set;}
+		public int iErrorInWrite{get; set;}
+		public int iErrorInCheck{get; set;}
 		
 		public StatInfo()
 		{
 			iReadCnt = iWriteCnt = iCheckCnt = 0;
 			iDuplicateReadCnt = iDuplicateWriteCnt = iDuplicateCheckCnt = 0;
 			iErrorTagInRead = iErrorTagInWrite = iErrorTagInCheck = 0;
-			iErrorInProcess = 0;
+			iErrorInRead = iErrorInWrite= iErrorInCheck = 0;
 		}
 	}
 

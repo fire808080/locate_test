@@ -56,5 +56,9 @@ namespace ssms
 
 		public const int TAG_NOT_DUPLICATE = 1;
 		public const int TAG_IN_DUPLICATE = 0;
+
+		public const int USE_OPTIMIZE_READ = 1;
+
+		
     }
 }

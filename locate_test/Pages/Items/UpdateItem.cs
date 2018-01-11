@@ -715,7 +715,7 @@ namespace ssms.Pages.Items
         }
 
         //read tags
-        bool updateItem_ir_tagRead(ref TagInfo tag, EventArgs e, ref Queue<TagInfo> stTagList, ref  Mutex stMutex)
+        bool updateItem_ir_tagRead(TagInfo tag, EventArgs e, Queue<TagInfo> stTagList, ref  Mutex stMutex)
         {
             Log.WriteLog(LogType.Trace, "come in updateItem_ir_tagRead");
             if (tag != null && epc == "")

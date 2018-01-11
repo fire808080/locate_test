@@ -560,7 +560,7 @@ namespace ssms.Pages.Items
         }
 
         //read tags
-        bool addItem_ir_tagRead(ref TagInfo tag, EventArgs e, ref Queue<TagInfo> stTagList, ref  Mutex stMutex)
+        bool addItem_ir_tagRead(TagInfo tag, EventArgs e, Queue<TagInfo> stTagList, ref  Mutex stMutex)
         {
             if (tag != null && epc=="")
             {

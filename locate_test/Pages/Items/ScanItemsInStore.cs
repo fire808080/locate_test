@@ -805,12 +805,14 @@ namespace ssms.Pages.Items
                 Log.WriteLog(LogType.Trace, "the tag[" + stTmpInfo.sTid + "] step now is [" + stTmpInfo.iTagStep + "], it will be discrease by 1.");
                 stTmpInfo.iTagStep--;
 			}
-			
+
+			#if false
             //debug
             foreach (TagInfo stTmpInfo in stTagList)
             {
                 Log.WriteLog(LogType.Trace, "after discrease， the tag[" + stTmpInfo.sTid + "] step now is [" + stTmpInfo.iTagStep + "].");
             }
+			#endif
 
 			/*====================插入读队列====================*/
 			/*插入fifo队列*/
@@ -823,17 +825,52 @@ namespace ssms.Pages.Items
             
         }
 
+		/*从fifo队列中弹出一个节点*/
+		bool ir_getTagInfo_fromQueue(Queue<TagInfo> stList, Mutex stMutex, ref TagInfo stTagInfo)
+        {
+			Log.WriteLog(LogType.Trace, "come in ir_getTagInfo_fromQueue");
+
+			stTagInfo = null;
+
+			
+			//锁临界资源
+			stMutex.WaitOne();
+
+			if (stList.Count == 0)
+			{
+				Log.WriteLog(LogType.Error, "error:1、there is not tag in queue list.");
+				//释放临界资源
+            	stMutex.ReleaseMutex();
+				return false;
+			}
+			
+			/*tag出队列*/
+			stTagInfo = stList.Dequeue();
+			if (stTagInfo == null)
+        	{
+				Log.WriteLog(LogType.Error, "error:2、there is not tag in queue list.");
+				//释放临界资源
+            	stMutex.ReleaseMutex();
+				return false;
+			}
+
+			//释放临界资源
+            stMutex.ReleaseMutex();
+
+			return true;
+		}
+		
 		/*参数：
-		*ref ImpinjReader stReader, 发起读写事件的读写器;
-		*string sTagId, 被处理的tag;
 		*EventArgs e, 
-		*ref Queue<TagInfo> stRList, 内存读队列;
+		*ImpinjReader stReader, 发起读写事件的读写器;
+		*string sTagId, 被处理的tag;
+		*Queue<TagInfo> stRList, 内存读队列;
 		*ref Mutex stRMutex,读队列锁;
-		*ref Queue<TagInfo> stWList, 内存写队列;
+		*Queue<TagInfo> stWList, 内存写队列;
 		*ref Mutex stWMutex,内存写锁
 		*描述:对触发写操作的读写器进行写操作*/
-        bool ir_handler_writeTag(ref ImpinjReader stReader, string sTagId, EventArgs e, ref Queue<TagInfo> stRList, 
-        	ref Mutex stRMutex, ref Queue<TagInfo> stWList, ref Mutex stWMutex, ref ushort usEpcOpId, ref ushort usPcBitOpId,
+        bool ir_handler_writeTag(EventArgs e, ImpinjReader stReader, string sTagId, Queue<TagInfo> stRList, 
+        	ref Mutex stRMutex, Queue<TagInfo> stWList, ref Mutex stWMutex, ref ushort usEpcOpId, ref ushort usPcBitOpId,
         	Dictionary<int, TagInfo> stDic)
         {
         	Log.WriteLog(LogType.Trace, "come in ir_handler_writeTag");
@@ -849,7 +886,7 @@ namespace ssms.Pages.Items
 
 			if (stRList.Count == 0)
 			{
-				Log.WriteLog(LogType.Error, "error:there is not tag in input list, but the write process is trigger by tag["+sTagId+"], this is impossible ");
+				Log.WriteLog(LogType.Error, "error:1、there is not tag in input list, but the write process is trigger by tag["+sTagId+"], this is impossible ");
 				//释放临界资源
             	stRMutex.ReleaseMutex();
 				return false;
@@ -859,7 +896,7 @@ namespace ssms.Pages.Items
 			TagInfo stTagInfo = stRList.Dequeue();
 			if (stTagInfo == null)
         	{
-				Log.WriteLog(LogType.Error, "error:there is not tag in input list, but the write process is triggered by tag["+sTagId+"], this is impossible.");
+				Log.WriteLog(LogType.Error, "error:2、there is not tag in input list, but the write process is triggered by tag["+sTagId+"], this is impossible.");
 				//释放临界资源
             	stRMutex.ReleaseMutex();
 				return false;
