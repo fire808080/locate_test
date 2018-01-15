@@ -712,6 +712,9 @@ namespace ssms.Util
 						Log.WriteLog(LogType.Trace, "reader["+lsImpinjRev[i].HostName+"] status is disconnect, so not need to disconnect it.");
 					}
 				}
+
+				//释放对所有impinj revolution的引用
+				lsImpinjRev.clear();
 			}
 			catch (Exception ex)
 			{
