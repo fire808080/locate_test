@@ -130,7 +130,7 @@ namespace ssms.DataClasses
 	                // Assign the TagOpComplete event handler.
 	                // This specifies which method to call
 	                // when tag operations are complete.
-	                stReader.TagOpComplete += ir_onTagOpComplete_writeTag;
+	                stReader.TagOpComplete += ir_onTagOpComplete_writeTagConfire;
 				}
 				break;
 
@@ -190,19 +190,20 @@ namespace ssms.DataClasses
 					// Assign the TagsReported event handler.
 					// This specifies which method to call
 					// when tags reports are available.
-                	stReader.TagsReported += ir_onTagsReported_writeTag;
+                	stReader.TagOpComplete += ir_onTagOpComplete_writeTag;
+
 
 	                // Assign the TagOpComplete event handler.
 	                // This specifies which method to call
 	                // when tag operations are complete.
-	                stReader.TagOpComplete += ir_onTagOpComplete_writeTag;
+	                stReader.TagOpComplete += ir_onTagOpComplete_writeTagConfire;
 				}
 				break;
 
 				case Macro.READER_TYPE_CHECKR:
 				{
 					//绑定tag上报处理函数
-					stReader.TagsReported += ir_onTagsReported_checkTag;   
+					stReader.TagOpComplete += ir_onTagOpComplete_checkTag;   
 				}
 				break;
 								
@@ -263,14 +264,14 @@ namespace ssms.DataClasses
 				settings.AutoStop.GpiPortNumber = 1;
 				settings.AutoStop.GpiLevel = false;
 
-				if (Macro.USE_OPTIMIZE_READ)
+				if (Macro.USE_OPTIMIZE_READ == 1)
 				{
 					// Create a tag read operation for TID memory.
 	                TagReadOp stReadOp = new TagReadOp();
 	                // Read from TID memory
 	                stReadOp.MemoryBank = MemoryBank.Tid;
 	                // Read two (16-bit) words
-	                stReadOp.WordCount = 2;
+	                stReadOp.WordCount = 6;
 	                // Starting at word 0
 	                stReadOp.WordPointer = 0;
 
@@ -282,7 +283,7 @@ namespace ssms.DataClasses
 					iOpReadId = stReadOp.Id;
 				}
 				
-				Log.WriteLog(LogType.Trace, "success to set reader settings for reader["+HostName+"]");
+				Log.WriteLog(LogType.Trace, "success to set reader settings for reader["+HostName+"] with operation id["+iOpReadId+"]");
 				return ;
 			}
             catch (Exception e)
@@ -326,14 +327,14 @@ namespace ssms.DataClasses
 				settings.AutoStop.GpiPortNumber = 1;
 				settings.AutoStop.GpiLevel = false;
 
-				if (Macro.USE_OPTIMIZE_READ)
+				if (Macro.USE_OPTIMIZE_READ == 1)
 				{
 					// Create a tag read operation for TID memory.
 	                TagReadOp stReadOp = new TagReadOp();
 	                // Read from TID memory
 	                stReadOp.MemoryBank = MemoryBank.Tid;
 	                // Read two (16-bit) words
-	                stReadOp.WordCount = 2;
+	                stReadOp.WordCount = 6;
 	                // Starting at word 0
 	                stReadOp.WordPointer = 0;
 
@@ -385,14 +386,14 @@ namespace ssms.DataClasses
 				settings.AutoStop.GpiPortNumber = 1;
 				settings.AutoStop.GpiLevel = false;
 
-				if (Macro.USE_OPTIMIZE_READ)
+				if (Macro.USE_OPTIMIZE_READ == 1)
 				{
 					// Create a tag read operation for TID memory.
 	                TagReadOp stReadOp = new TagReadOp();
 	                // Read from TID memory
 	                stReadOp.MemoryBank = MemoryBank.Tid;
 	                // Read two (16-bit) words
-	                stReadOp.WordCount = 2;
+	                stReadOp.WordCount = 6;
 	                // Starting at word 0
 	                stReadOp.WordPointer = 0;
 
@@ -653,22 +654,43 @@ namespace ssms.DataClasses
             	{
 					case Macro.READER_TYPE_READER:
 					{
-						reader.TagsReported -= ir_onTagsReported_readTag;  //去绑定tag上报处理函数
+						if (Macro.USE_OPTIMIZE_READ == 0)
+						{
+							reader.TagsReported -= ir_onTagsReported_readTag;  //去绑定tag上报处理函数
+						}
+						else
+						{
+							reader.TagOpComplete -= ir_onTagOpComplete_readTag;
 
+						}
 					}
 					break;
 
                     case Macro.READER_TYPE_WRITER:
 					{
-						reader.TagsReported -= ir_onTagsReported_writeTag;  //去绑定tag上报处理函数
-						reader.TagOpComplete -= ir_onTagOpComplete_writeTag;
+						if (Macro.USE_OPTIMIZE_READ == 0)
+						{
+							reader.TagsReported -= ir_onTagsReported_writeTag;  //去绑定tag上报处理函数
+						}
+						else
+						{
+							reader.TagOpComplete -= ir_onTagOpComplete_writeTag;
+						}
+						reader.TagOpComplete -= ir_onTagOpComplete_writeTagConfire;
 
 					}
 					break;
 					
 					case Macro.READER_TYPE_CHECKR:
 					{
-						reader.TagsReported -= ir_onTagsReported_checkTag;	
+						if (Macro.USE_OPTIMIZE_READ == 0)
+						{
+							reader.TagsReported -= ir_onTagsReported_checkTag;	
+						}
+						else
+						{
+							reader.TagOpComplete -= ir_onTagOpComplete_checkTag;
+						}
 					}
 					break;
 					
@@ -804,7 +826,7 @@ namespace ssms.DataClasses
 					stStatInfo.iDuplicateWriteCnt ++;
 					iRet = Macro.TAG_IN_DUPLICATE;
 					
-					Log.WriteLog(LogType.Trace, "the tag["+sTagId+"] has been read before in write process.");					
+					Log.WriteLog(LogType.Trace, "the tag["+sTagId+"] has been read before in write process, the step in memery is["+stDeduplicateDic[sTagId]+"] not equal Macro.TAG_DEDUPLICATE_READ.");					
 				}
 			}
 			catch (System.Exception e)
@@ -857,9 +879,9 @@ namespace ssms.DataClasses
 
 		
 		//入场tag id进行去重判断;判断tag id是否有重复;只有当tag id是重复的，才会返回false；其他情况都返回true，继续处理；
-        bool ir_deduplicateTagId(Tag stTag, int iReaderType, ref int iRet)
+        bool ir_deduplicateTagId(string sTagId, int iReaderType, ref int iRet)
         {
-        	string sTagId = stTag.Tid.ToString();
+        	//string sTagId = stTag.Tid.ToString();
 			
 			Log.WriteLog(LogType.Trace, "come in ir_deduplicateTagId");
 
@@ -921,7 +943,7 @@ namespace ssms.DataClasses
 		}
 
 		//生成一个tag info节点。该函数只会在一种情况下发生错误：申请不到内存的情况下。
-		TagInfo ir_createTagInfo(Tag tag)
+		TagInfo ir_createTagInfo(Tag tag, string sTagId)
         {
         	Log.WriteLog(LogType.Trace, "come in ir_createTagInfo");
 
@@ -934,8 +956,8 @@ namespace ssms.DataClasses
 				stTagInfo.sEpc = tag.Epc.ToString();
 				stTagInfo.sEpcHx = tag.Epc.ToHexString();
 				
-				stTagInfo.sTid = tag.Tid.ToString();
-				stTagInfo.sTidHx = tag.Tid.ToHexString();
+				stTagInfo.sTid = sTagId;
+				//stTagInfo.sTidHx = sTagId;
 				stTagInfo.usPcBits = tag.PcBits;
 				stTagInfo.ReaderHostName = HostName;
 
@@ -953,6 +975,281 @@ namespace ssms.DataClasses
 				return null;
 			}
 		}
+
+		/*处理每一个上报上来的tag标签*/
+		bool ir_readTag_processTag(Tag stTag, string sTagId)
+        {
+            Log.WriteLog(LogType.Trace, "come in ir_readTag_processTag");
+			
+			int iRet = 0;
+
+			Log.WriteLog(LogType.Trace, "get tag from tagOpComplete report, the tag["+sTagId+"]with epc[" + stTag.Epc.ToString() + "], it  is readed "+
+				"from reader[" + HostName + "] in antenna[" + stTag.AntennaPortNumber + "]");
+				
+        	//入场对tag id进行去重处理
+			if (!ir_deduplicateTagId(sTagId, Macro.READER_TYPE_READER, ref iRet))
+			{
+				stStatInfo.iErrorInRead++;
+				return false;
+			}
+
+			//重复上报的tag
+			if (iRet != Macro.TAG_NOT_DUPLICATE)
+			{
+				return true;
+			}
+				
+			//生成tag info消息节点
+			TagInfo stTagInfo = ir_createTagInfo(stTag, sTagId);
+			if (null == stTagInfo)
+			{
+				stStatInfo.iErrorInRead++;
+				return false;
+			}
+
+			//判断tag id合法性，如不合法，则后续的流程都不用操作
+			if (stTagInfo.sTid == "")
+			{
+				stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
+				stStatInfo.iErrorTagInRead ++;
+				Log.WriteLog(LogType.Warning, "the tag id is null");
+			}
+						
+			
+			//加入入场队列
+			if (!dReadHandler(stTagInfo, null, stRList, ref stRMutex))
+			{
+				stStatInfo.iErrorInRead++;
+				Log.WriteLog(LogType.Error, "error to insert tag["+stTagInfo.sTid+"] into input list");
+				return false;
+			}
+				
+            
+			return true;
+			
+        }
+
+		//写读写器处理tag上报事件
+		bool ir_writeTag_processTag(Tag stTag, string sTagId, ImpinjReader sender)
+		{
+			ushort usTmpEpcOpId = 0, usTmpPcBitOpId = 0;
+			int iRet = 0;
+			
+			Log.WriteLog(LogType.Trace, "come in ir_writeTag_processTag");
+
+			Log.WriteLog(LogType.Trace, "get tag from tagOpComplete report, the tag["+sTagId+"]with epc[" + stTag.Epc.ToString() + "] is readed "+
+				"from reader[" + HostName + "] in antenna[" + stTag.AntennaPortNumber + "]");
+
+			//入场对tag id进行去重处理
+			if (!ir_deduplicateTagId(sTagId,  Macro.READER_TYPE_WRITER, ref iRet))
+			{
+				stStatInfo.iErrorInWrite ++;
+				return false;
+			}
+
+			if (iRet != Macro.TAG_NOT_DUPLICATE)
+			{
+				return true;
+			}
+
+
+			//进行写操作
+			if (!dWriteHandler(null, sender, sTagId, stRList, ref stRMutex, stWList, ref stWMutex, ref usTmpEpcOpId, ref usTmpPcBitOpId, stTagDic))
+			{
+				Log.WriteLog(LogType.Error, "error to write tag[" + sTagId + "] epc info.");
+				stStatInfo.iErrorInWrite ++;
+
+				return false;
+			}
+
+			usTmpEpcOpId = usEpcOpId;
+			usTmpPcBitOpId = usPcBitOpId;
+
+            return true;
+		}
+
+		//定义tag上报处理函数
+        bool ir_checkTag_processTag(Tag stTag, string sTagId, ImpinjReader sender)
+        {
+            Log.WriteLog(LogType.Trace, "come in ir_checkTag_processTag");
+			
+            
+        	int iRet = 0;
+				
+        	Log.WriteLog(LogType.Trace, "get tag from tagOpComplete report, the tag["+sTagId+"]with epc[" + stTag.Epc.ToString() + "] is readed "+
+				"from reader[" + HostName + "] in antenna[" + stTag.AntennaPortNumber + "]");
+
+
+			//入场对tag id进行去重处理
+			if (!ir_deduplicateTagId(sTagId, Macro.READER_TYPE_CHECKR, ref iRet))
+			{
+				stStatInfo.iErrorInWrite ++;
+				return false;
+			}
+
+			if (iRet != Macro.TAG_NOT_DUPLICATE)
+			{
+				return true;
+			}
+				
+			//进行校验操作
+			if (!dCheckHandler(sender, sTagId, stTag.Epc.ToString(), stWList, stWMutex))
+			{
+                Log.WriteLog(LogType.Error, "error to check tag[" +sTagId + "] epc info.");
+				return false;
+			}
+                
+			return true;
+			
+        }
+		
+
+        //定义tag上报处理函数
+        void ir_onTagOpComplete_readTag(ImpinjReader sender, TagOpReport report)
+        {
+            string userData, sTid, sEpc;
+            userData = sTid = sEpc = "";
+			
+			Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_readTag");
+
+			sender.TagOpComplete -= ir_onTagOpComplete_readTag;
+			
+            // Loop through all the completed tag operations
+            foreach (TagOpResult stRet in report)
+            {
+                // Was this completed operation a tag read operation?
+                if (stRet is TagReadOpResult)
+                {
+                    // Cast it to the correct type.
+                    TagReadOpResult stRRet = stRet as TagReadOpResult;
+
+                    // Save the EPC
+                    sEpc = stRRet.Tag.Epc.ToHexString();
+
+                    // Are these the results for User memory or TID?
+                    if (stRRet.OpId == iOpReadId)
+                    {
+                        sTid = stRRet.Data.ToHexString();
+						Log.WriteLog(LogType.Trace, "success to get tid["+sTid+"], epc["+sEpc+"] with operation id["+stRRet.OpId+"] in read process.");
+
+						if (!ir_readTag_processTag(stRRet.Tag, sTid))
+						{
+							Log.WriteLog(LogType.Error, "Error to call ir_readTag_processTag");
+						}
+						
+                    }
+					else
+					{
+						//tid 操作出错 
+						Log.WriteLog(LogType.Error, "the operation id["+stRRet.OpId+"] in   result is not equal with regist operation id["+iOpReadId+"] in read process.");
+					}
+                }
+				else
+				{
+					Log.WriteLog(LogType.Warning, "the tag operation result is not read result in read process.");
+				}
+            }
+
+            sender.TagOpComplete += ir_onTagOpComplete_readTag;
+        }
+
+		//定义tag上报处理函数
+        void ir_onTagOpComplete_writeTag(ImpinjReader sender, TagOpReport report)
+        {
+            string userData, sTid, sEpc;
+
+            userData = sTid = sEpc = "";
+			Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_writeTag");
+
+			sender.TagOpComplete -= ir_onTagOpComplete_writeTag;
+			
+            // Loop through all the completed tag operations
+            foreach (TagOpResult stRet in report)
+            {
+                // Was this completed operation a tag read operation?
+                if (stRet is TagReadOpResult)
+                {
+                    // Cast it to the correct type.
+                    TagReadOpResult stWRet = stRet as TagReadOpResult;
+
+                    // Save the EPC
+                    sEpc = stWRet.Tag.Epc.ToHexString();
+
+                    // Are these the results for User memory or TID?
+                    if (stWRet.OpId == iOpWriteId)
+                    {
+                        sTid = stWRet.Data.ToHexString();
+						Log.WriteLog(LogType.Trace, "success to get tid["+sTid+"], epc["+sEpc+"] with operation id["+stWRet.OpId+"] in write process.");
+
+						if (!ir_writeTag_processTag(stWRet.Tag, sTid, sender))
+						{
+							Log.WriteLog(LogType.Error, "Error to call ir_readTag_processTag");
+						}
+						
+                    }
+					else
+					{
+						//tid 操作出错 
+						Log.WriteLog(LogType.Error, "the operation id["+stWRet.OpId+"] in   result is not equal with regist operation id["+iOpWriteId+"] in write process.");
+					}
+                }
+				else
+				{
+					Log.WriteLog(LogType.Warning, "the tag operation result is not read result.");
+				}
+            }
+
+            sender.TagOpComplete += ir_onTagOpComplete_writeTag;
+        }
+
+		//定义tag上报处理函数
+        void ir_onTagOpComplete_checkTag(ImpinjReader sender, TagOpReport report)
+        {
+            string userData, sTid, sEpc;
+            userData = sTid = sEpc = "";
+			
+			Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_checkTag");
+
+			sender.TagOpComplete -= ir_onTagOpComplete_checkTag;
+			
+            // Loop through all the completed tag operations
+            foreach (TagOpResult stRet in report)
+            {
+                // Was this completed operation a tag read operation?
+                if (stRet is TagReadOpResult)
+                {
+                    // Cast it to the correct type.
+                    TagReadOpResult stCRet = stRet as TagReadOpResult;
+
+                    // Save the EPC
+                    sEpc = stCRet.Tag.Epc.ToHexString();
+
+                    // Are these the results for User memory or TID?
+                    if (stCRet.OpId == iOpReadId)
+                    {
+                        sTid = stCRet.Data.ToHexString();
+						Log.WriteLog(LogType.Trace, "success to get tid["+sTid+"], epc["+sEpc+"] with operation id["+stCRet.OpId+"] in check process.");
+
+						if (!ir_checkTag_processTag(stCRet.Tag, sTid, sender))
+						{
+							Log.WriteLog(LogType.Error, "Error to call ir_checkTag_processTag");
+						}
+						
+                    }
+					else
+					{
+						//tid 操作出错 
+						Log.WriteLog(LogType.Error, "the operation id["+stCRet.OpId+"] in   result is not equal with regist operation id["+iOpCheckId+"] in check process.");
+					}
+                }
+				else
+				{
+					Log.WriteLog(LogType.Warning, "the tag operation result is not read result in check process.");
+				}
+            }
+
+            sender.TagOpComplete += ir_onTagOpComplete_checkTag;
+        }
 		
         //定义tag上报处理函数
         void ir_onTagsReported_readTag(ImpinjReader sender, TagReport report)
@@ -972,7 +1269,7 @@ namespace ssms.DataClasses
 					"from reader[" + HostName + "] in antenna[" + tag.AntennaPortNumber + "]");
 				
             	//入场对tag id进行去重处理
-				if (!ir_deduplicateTagId(tag, Macro.READER_TYPE_READER, ref iRet))
+				if (!ir_deduplicateTagId(tag.Tid.ToString(), Macro.READER_TYPE_READER, ref iRet))
 				{
 					stStatInfo.iErrorInRead++;
 					continue;
@@ -985,7 +1282,7 @@ namespace ssms.DataClasses
 				}
 				
 				//生成tag info消息节点
-				TagInfo stTagInfo = ir_createTagInfo(tag);
+				TagInfo stTagInfo = ir_createTagInfo(tag, "");
 				if (null == stTagInfo)
 				{
 					stStatInfo.iErrorInRead++;
@@ -1016,96 +1313,8 @@ namespace ssms.DataClasses
         }
 
 
-        //定义tag上报处理函数
-        void ir_onTagOpComplete_readTag(ImpinjReader sender, TagOpReport report)
-        {
-            string userData, tidData, epcData;
 
-            userData = tidData = epcData = "";
-			Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_readTag");
-			
-            // Loop through all the completed tag operations
-            foreach (TagOpResult result in report)
-            {
-                // Was this completed operation a tag read operation?
-                if (result is TagReadOpResult)
-                {
-                    // Cast it to the correct type.
-                    TagReadOpResult readResult = result as TagReadOpResult;
 
-                    // Save the EPC
-                    epcData = readResult.Tag.Epc.ToHexString();
-
-                    // Are these the results for User memory or TID?
-                    if (readResult.OpId == opIdUser)
-                        userData = readResult.Data.ToHexString();
-                    else if (readResult.OpId == opIdTid)
-                        tidData = readResult.Data.ToHexString();
-                }
-            }
-
-            // Print out the results after both Optimized Read operations have completed.
-            Console.WriteLine("EPC : {0}, TID : {1}, User : {2}", epcData, tidData, userData);
-        }
-		
-        {
-            Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_readTag");
-			
-			Log.WriteLog(LogType.Trace, "there are "+report.Tags.Count()+" tags in the read report");
-
-			//不再接收tag report
-			sender.TagsReported -= ir_onTagsReported_readTag;
-			
-            foreach (Tag tag in report)
-            {
-            	int iRet = 0;
-				
-            	Log.WriteLog(LogType.Trace, "get tag from tagreport, the tag["+tag.Tid.ToString()+"]with epc[" + tag.Epc.ToString() + "] is readed "+
-					"from reader[" + HostName + "] in antenna[" + tag.AntennaPortNumber + "]");
-				
-            	//入场对tag id进行去重处理
-				if (!ir_deduplicateTagId(tag, Macro.READER_TYPE_READER, ref iRet))
-				{
-					stStatInfo.iErrorInRead++;
-					continue;
-				}
-
-				//重复上报的tag
-				if (iRet != Macro.TAG_NOT_DUPLICATE)
-				{
-					continue;
-				}
-				
-				//生成tag info消息节点
-				TagInfo stTagInfo = ir_createTagInfo(tag);
-				if (null == stTagInfo)
-				{
-					stStatInfo.iErrorInRead++;
-
-					sender.TagsReported += ir_onTagsReported_readTag;
-					return;
-				}
-
-				//判断tag id合法性，如不合法，则后续的流程都不用操作
-				if (stTagInfo.sTid == "")
-				{
-					stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
-					stStatInfo.iErrorTagInRead ++;
-					Log.WriteLog(LogType.Warning, "the tag id is null");
-				}
-							
-				
-				//加入入场队列
-				if (!dReadHandler(stTagInfo, null, stRList, ref stRMutex))
-				{
-					stStatInfo.iErrorInRead++;
-					Log.WriteLog(LogType.Error, "error to insert tag["+stTagInfo.sTid+"] into input list");
-				}
-				
-            }
-
-			sender.TagsReported += ir_onTagsReported_readTag;
-        }
 		
 
 		
@@ -1128,7 +1337,7 @@ namespace ssms.DataClasses
 					"from reader[" + HostName + "] in antenna[" + tag.AntennaPortNumber + "]");
 
             	//入场对tag id进行去重处理
-				if (!ir_deduplicateTagId(tag, Macro.READER_TYPE_WRITER, ref iRet))
+				if (!ir_deduplicateTagId(tag.Tid.ToString(), Macro.READER_TYPE_WRITER, ref iRet))
 				{
 					stStatInfo.iErrorInWrite ++;
 					continue;
@@ -1143,7 +1352,7 @@ namespace ssms.DataClasses
 				//进行写操作
 				if (!dWriteHandler(null, sender, tag.Tid.ToString(), stRList, ref stRMutex, stWList, ref stWMutex, ref usTmpEpcOpId, ref usTmpPcBitOpId, stTagDic))
 				{
-                    Log.WriteLog(LogType.Error, "error to write tag[" + tag.Tid.ToString() + "] epc into.");
+                    Log.WriteLog(LogType.Error, "error to write tag[" + tag.Tid.ToString() + "] epc info.");
 					stStatInfo.iErrorInWrite ++;
 				}
 
@@ -1159,11 +1368,11 @@ namespace ssms.DataClasses
         }
 
         //定义tag写完成报告处理函数
-        void ir_onTagOpComplete_writeTag(ImpinjReader sender, TagOpReport report)
+        void ir_onTagOpComplete_writeTagConfire(ImpinjReader sender, TagOpReport report)
         {
         	bool bOk = true;
 			
-        	Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_writeTag");
+        	Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_writeTagConfire");
 
 
 			try
@@ -1238,7 +1447,7 @@ namespace ssms.DataClasses
 
 
 				//入场对tag id进行去重处理
-				if (!ir_deduplicateTagId(tag, Macro.READER_TYPE_CHECKR, ref iRet))
+				if (!ir_deduplicateTagId(tag.Tid.ToString(), Macro.READER_TYPE_CHECKR, ref iRet))
 				{
 					continue;
 				}
