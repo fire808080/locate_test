@@ -785,8 +785,8 @@ namespace ssms.Pages.Items
 
 		
 		//把tag插入入场队列
-        bool ir_handler_readTag(TagInfo stTagInfo, EventArgs e, Queue<TagInfo> stTagList, ref Mutex stMutex)
-        {
+        public static bool ir_handler_readTag(TagInfo stTagInfo, EventArgs e, Queue<TagInfo> stTagList, ref Mutex stMutex)
+		{
         	Log.WriteLog(LogType.Trace, "come in ir_handler_readTag");
 
 			if (stTagInfo == null || stTagList == null)

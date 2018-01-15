@@ -714,7 +714,7 @@ namespace ssms.Util
 				}
 
 				//释放对所有impinj revolution的引用
-				lsImpinjRev.clear();
+				lsImpinjRev.Clear();
 			}
 			catch (Exception ex)
 			{

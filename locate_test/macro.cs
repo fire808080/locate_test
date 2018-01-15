@@ -45,9 +45,15 @@ namespace ssms
 		public const int TAG_WRITE_FINISH = 1; //处于该状态，标识tag已写成功
 		
 		//tag 处理步骤
+		#if false
 		public const int TAG_STEP_INIT = 9; //tag开始进入处理阶段 
 		public const int TAG_STEP_DONE_WIRTE = 5; //tag进行写操作
 		public const int TAG_STEP_DONE_CHECK = 0; //tag进行校验操作 
+		#else
+		public const int TAG_STEP_INIT = 3; //tag开始进入处理阶段 
+		public const int TAG_STEP_DONE_WIRTE = 3; //tag进行写操作
+		public const int TAG_STEP_DONE_CHECK = 3; //tag进行校验操作 
+		#endif
 
 		//tag 去重状态
 		public const int TAG_DEDUPLICATE_READ = 1; //读去重 

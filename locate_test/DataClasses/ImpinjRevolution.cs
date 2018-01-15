@@ -9,6 +9,8 @@ using System.Collections;
 using System.Threading;
 
 using ssms.Util;
+using ssms.Pages.Items;
+
 
 namespace ssms.DataClasses
 {
@@ -902,7 +904,7 @@ namespace ssms.DataClasses
 				break;
 
 				case Macro.READER_TYPE_WRITER:
-				{
+				{					
 					if (!ir_deduplicateTagId_write(sTagId, ref iRet))
 					{
 						Log.WriteLog(LogType.Error, "error to call ir_deduplicateTagId_write");
@@ -1062,9 +1064,9 @@ namespace ssms.DataClasses
 				return false;
 			}
 
-			usTmpEpcOpId = usEpcOpId;
-			usTmpPcBitOpId = usPcBitOpId;
-
+			usEpcOpId = usTmpEpcOpId;
+			usPcBitOpId = usTmpPcBitOpId;
+ 
             return true;
 		}
 
@@ -1103,7 +1105,7 @@ namespace ssms.DataClasses
 			
         }
 		
-
+		
         //定义tag上报处理函数
         void ir_onTagOpComplete_readTag(ImpinjReader sender, TagOpReport report)
         {
@@ -1153,6 +1155,58 @@ namespace ssms.DataClasses
             sender.TagOpComplete += ir_onTagOpComplete_readTag;
         }
 
+		/*在写操作测试前，进行读操作*/
+		void  ir_test_forWrite(ImpinjReader sender, TagOpReport report)
+        {
+            string userData, sTid, sEpc;
+            userData = sTid = sEpc = "";
+			
+			Log.WriteLog(LogType.Trace, "come in ir_test_forWrite");
+
+			
+			dReadHandler = ScanItemsInStore.ir_handler_readTag;
+			
+            // Loop through all the completed tag operations
+            foreach (TagOpResult stRet in report)
+            {
+                // Was this completed operation a tag read operation?
+                if (stRet is TagReadOpResult)
+                {
+                    // Cast it to the correct type.
+                    TagReadOpResult stRRet = stRet as TagReadOpResult;
+
+                    // Save the EPC
+                    sEpc = stRRet.Tag.Epc.ToHexString();
+
+                    // Are these the results for User memory or TID?
+                    //if (stRRet.OpId == iOpReadId)
+                    {
+                        sTid = stRRet.Data.ToHexString();
+						Log.WriteLog(LogType.Trace, "success to get tid["+sTid+"], epc["+sEpc+"] with operation id["+stRRet.OpId+"] in read process.");
+
+						if (!ir_readTag_processTag(stRRet.Tag, sTid))
+						{
+							Log.WriteLog(LogType.Error, "Error to call ir_readTag_processTag");
+						}
+						
+                    }
+					#if false
+					else
+					{
+						//tid 操作出错 
+						Log.WriteLog(LogType.Error, "the operation id["+stRRet.OpId+"] in   result is not equal with regist operation id["+iOpReadId+"] in read process.");
+					}
+					#endif
+                }
+				else
+				{
+					Log.WriteLog(LogType.Warning, "the tag operation result is not read result in read process.");
+				}
+            }
+
+        }
+		
+
 		//定义tag上报处理函数
         void ir_onTagOpComplete_writeTag(ImpinjReader sender, TagOpReport report)
         {
@@ -1162,6 +1216,14 @@ namespace ssms.DataClasses
 			Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_writeTag");
 
 			sender.TagOpComplete -= ir_onTagOpComplete_writeTag;
+			
+
+			#if true
+			ir_test_forWrite(sender, report);
+			#endif
+
+			
+
 			
             // Loop through all the completed tag operations
             foreach (TagOpResult stRet in report)
@@ -1356,8 +1418,8 @@ namespace ssms.DataClasses
 					stStatInfo.iErrorInWrite ++;
 				}
 
-				usTmpEpcOpId = usEpcOpId;
-				usTmpPcBitOpId = usPcBitOpId;
+				usEpcOpId = usTmpEpcOpId;
+				usPcBitOpId = usTmpPcBitOpId;
 
                 
             }
@@ -1399,6 +1461,13 @@ namespace ssms.DataClasses
 
 						Log.WriteLog(LogType.Trace, "Number of words written : "+writeResult.NumWordsWritten+".");
 	                }
+					else if (result is TagReadOpResult)
+					{
+						TagReadOpResult readResult = result as TagReadOpResult;
+						
+						Log.WriteLog(LogType.Warning, "the result report for tag is read report, the op id["+readResult.OpId+"], the result is " +readResult.Result);
+						bOk = false;
+					}
 					else
 					{
 						Log.WriteLog(LogType.Warning, "the result report for tag is not write report");
@@ -1414,11 +1483,13 @@ namespace ssms.DataClasses
 
 	                Log.WriteLog(LogType.Trace, "success to set tag[" + stTagInfo.sTid + "] write state into finish.");
 
+					//移除节点
+					stTagDic.Remove(usEpcOpId);
+					Log.WriteLog(LogType.Trace, "success to remove tag info from dictionary with ecp op id["+usEpcOpId+"]");
+
 	            }
 				
-	            //移除节点
-	            stTagDic.Remove(usEpcOpId);
-				Log.WriteLog(LogType.Trace, "success to remove tag info from dictionary with ecp op id["+usEpcOpId+"]");
+	            
 				
 			}
 			catch (Exception e)
