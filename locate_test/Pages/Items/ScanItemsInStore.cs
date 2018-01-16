@@ -37,10 +37,10 @@ namespace ssms.Pages.Items
         SettingsMain sm = new SettingsMain();
         public List<string> check = new List<string>();
 
-		static ushort usOpId = 0;
 		
-        const ushort EPC_OP_ID = 123;
-        const ushort PC_BITS_OP_ID = 321;
+		Random stRand = new Random();
+		
+
 		
 
 		//设置控件可用性
@@ -773,8 +773,17 @@ namespace ssms.Pages.Items
 
                 // Add this tag write op to the tag operation sequence.
                 seq.Ops.Add(writePc);
+
+				//设置tag写标志位
+				stTagInfo.iTagWState = Macro.TAG_WRITE_INIT;
             }
-        
+			else
+			{
+				stTagInfo.iTagWState = Macro.TAG_WRITE_MODIFY_LEN;
+			}
+
+			
+			
             // Add the tag operation sequence to the reader.
             // The reader supports multiple sequences.
             stReader.AddOpSequence(seq);
@@ -905,6 +914,8 @@ namespace ssms.Pages.Items
 			//释放临界资源
             stRMutex.ReleaseMutex();
 
+			Log.WriteLog(LogType.Trace, "success get a tag info from queue with tid["+sTagId+"] trigger.");
+			
 			/*====================节点合法性判断====================*/
             //必须保证进场顺序和写顺序一致
             if (!string.Equals(sTagId, stTagInfo.sTid))
@@ -922,6 +933,8 @@ namespace ssms.Pages.Items
 
 				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue step is ["+stTagInfo.iTagStep+"],not equere step["+ Macro.TAG_STEP_DONE_WIRTE+"], set the state into error.");
 			}
+			
+			Log.WriteLog(LogType.Trace, "success confirm thetid["+stTagInfo.sTid+"] in tag info is equal with trigger tid["+sTagId+"] and in step["+Macro.TAG_STEP_DONE_WIRTE+"].");
 
 
 			/*====================进行写操作====================*/
@@ -932,18 +945,19 @@ namespace ssms.Pages.Items
 			}
 			else
 			{
-				usOpId ++;
-				usEpcOpId = usPcBitOpId = usOpId;
+　　				
+                    int iRnd = stRand.Next(100, 65535);
+                    usEpcOpId    = (ushort)iRnd;
+					usPcBitOpId = (ushort)(usEpcOpId+1);
 				
 				//对tag进行写操作
-				if (!ir_writeTag(stReader, stTagInfo, "1111222233334444", usEpcOpId, usPcBitOpId))
+				if (!ir_writeTag(stReader, stTagInfo, "55556666777788889999", usEpcOpId, usPcBitOpId))
 				{
 					stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
 					Log.WriteLog(LogType.Trace, "error:set tag["+stTagInfo.sTid+"]write operation error, so set its state into error");
 				}
 
-				//设置tag写标志位
-				stTagInfo.iTagWState = Macro.TAG_WRITE_INIT;
+				
 
 				//tag加入dic字典
 				stDic.Add(usEpcOpId, stTagInfo);
@@ -968,7 +982,8 @@ namespace ssms.Pages.Items
 			
 			//释放临界资源
             stWMutex.ReleaseMutex();
-			
+
+			Log.WriteLog(LogType.Trace, "success to put tag info with tid["+stTagInfo.sTid+"] into write queue");
             return true;
 
         }

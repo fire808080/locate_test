@@ -34,7 +34,8 @@ namespace ssms
 		//读写器类型宏定义
 		public const int READER_TYPE_READER = 0;
 		public const int READER_TYPE_WRITER = 1;
-		public const int READER_TYPE_CHECKR = 2;
+		public const int READER_TYPE_WRITER_CONFIRM = 2;
+		public const int READER_TYPE_CHECKR = 3;
 
 		//tag状态
 		public const int TAG_STATE_ERROR = 0;   //处于该状态下的tag，从产生错误的地方起，不用进行后续的处理
@@ -42,7 +43,8 @@ namespace ssms
 
 		//tag写状态
 		public const int TAG_WRITE_INIT = 0;   //处于该状态，标识tag没有写成功，是无效tag
-		public const int TAG_WRITE_FINISH = 1; //处于该状态，标识tag已写成功
+		public const int TAG_WRITE_MODIFY_LEN = 1;   //处于该状态，标识tag没有写成功，是无效tag
+		public const int TAG_WRITE_FINISH = 2; //处于该状态，标识tag已写成功
 		
 		//tag 处理步骤
 		#if false
@@ -58,12 +60,18 @@ namespace ssms
 		//tag 去重状态
 		public const int TAG_DEDUPLICATE_READ = 1; //读去重 
 		public const int TAG_DEDUPLICATE_WRITE = 2; //写去重 
-		public const int TAG_DEDUPLICATE_CHECK = 3; //验去重 
+		public const int TAG_DEDUPLICATE_WRITE_CONFIRM = 3; //写确认去重 
+		public const int TAG_DEDUPLICATE_CHECK = 4; //验去重 
 
 		public const int TAG_NOT_DUPLICATE = 1;
 		public const int TAG_IN_DUPLICATE = 0;
 
 		public const int USE_OPTIMIZE_READ = 1;
+
+		//读写验操作id
+		public const int TAG_OP_ID_READ = 1;
+		public const int TAG_OP_ID_WRITE = 2;
+		public const int TAG_OP_ID_CHECK = 3;
 
 		
     }

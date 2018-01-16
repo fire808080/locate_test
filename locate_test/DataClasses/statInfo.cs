@@ -17,18 +17,22 @@ namespace ssms.DataClasses
     {
 		public int iReadCnt { get; set; }
 		public int iWriteCnt { get; set; }
+		public int iWriteConfirmCnt { get; set; }
 		public int iCheckCnt { get; set; }
 		
 		public int iDuplicateReadCnt { get; set; }
 		public int iDuplicateWriteCnt { get; set; }
+		public int iDuplicateWriteConfirmCnt { get; set; }
 		public int iDuplicateCheckCnt { get; set; }
 
 		public int iErrorTagInRead{get; set;}
 		public int iErrorTagInWrite{get; set;}
 		public int iErrorTagInCheck{get; set;}
 
+		//在不同阶段发生的错误统计
 		public int iErrorInRead{get; set;}
 		public int iErrorInWrite{get; set;}
+		public int iErrorInWriteConfrim{get; set;}
 		public int iErrorInCheck{get; set;}
 		
 		public StatInfo()
