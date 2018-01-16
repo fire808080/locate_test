@@ -792,6 +792,40 @@ namespace ssms.Pages.Items
 			return true;
         }
 
+				/*从fifo队列中弹出一个节点*/
+		bool ir_getTagInfo_fromQueue(Queue<TagInfo> stList, Mutex stMutex, ref TagInfo stTagInfo)
+        {
+			Log.WriteLog(LogType.Trace, "come in ir_getTagInfo_fromQueue");
+
+			stTagInfo = null;
+
+			
+			//锁临界资源
+			stMutex.WaitOne();
+
+			if (stList.Count == 0)
+			{
+				Log.WriteLog(LogType.Error, "error:1、there is not tag in queue list.");
+				//释放临界资源
+            	stMutex.ReleaseMutex();
+				return false;
+			}
+			
+			/*tag出队列*/
+			stTagInfo = stList.Dequeue();
+			if (stTagInfo == null)
+        	{
+				Log.WriteLog(LogType.Error, "error:2、there is not tag in queue list.");
+				//释放临界资源
+            	stMutex.ReleaseMutex();
+				return false;
+			}
+
+			//释放临界资源
+            stMutex.ReleaseMutex();
+
+			return true;
+		}
 		
 		//把tag插入入场队列
         public static bool ir_handler_readTag(TagInfo stTagInfo, EventArgs e, Queue<TagInfo> stTagList, ref Mutex stMutex)
@@ -829,45 +863,14 @@ namespace ssms.Pages.Items
 			Log.WriteLog(LogType.Trace, "success to add tag["+stTagInfo.sTid+"] into queue");
 			//释放临界资源
             stMutex.ReleaseMutex();
+
+			/*显示到前端*/
 			
             return true;
             
         }
 
-		/*从fifo队列中弹出一个节点*/
-		bool ir_getTagInfo_fromQueue(Queue<TagInfo> stList, Mutex stMutex, ref TagInfo stTagInfo)
-        {
-			Log.WriteLog(LogType.Trace, "come in ir_getTagInfo_fromQueue");
 
-			stTagInfo = null;
-
-			
-			//锁临界资源
-			stMutex.WaitOne();
-
-			if (stList.Count == 0)
-			{
-				Log.WriteLog(LogType.Error, "error:1、there is not tag in queue list.");
-				//释放临界资源
-            	stMutex.ReleaseMutex();
-				return false;
-			}
-			
-			/*tag出队列*/
-			stTagInfo = stList.Dequeue();
-			if (stTagInfo == null)
-        	{
-				Log.WriteLog(LogType.Error, "error:2、there is not tag in queue list.");
-				//释放临界资源
-            	stMutex.ReleaseMutex();
-				return false;
-			}
-
-			//释放临界资源
-            stMutex.ReleaseMutex();
-
-			return true;
-		}
 		
 		/*参数：
 		*EventArgs e, 
