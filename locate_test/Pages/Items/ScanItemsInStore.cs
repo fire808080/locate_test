@@ -978,30 +978,10 @@ namespace ssms.Pages.Items
 				return false;
 			}
 			
-
 			//锁临界资源
 			stRMutex.WaitOne();
 
-			#if false
-			if (stRQue.Count == 0)
-			{
-				Log.WriteLog(LogType.Error, "error:1、there is not tag in input list, but the write process is trigger by tag["+sTagId+"], this is impossible ");
-				//释放临界资源
-            	stRMutex.ReleaseMutex();
-				return false;
-			}
-			
-			/*tag出队列*/
-			TagInfo stTagInfo = stRQue.Dequeue();
-			if (stTagInfo == null)
-        	{
-				Log.WriteLog(LogType.Error, "error:2、there is not tag in input list, but the write process is triggered by tag["+sTagId+"], this is impossible.");
-				//释放临界资源
-            	stRMutex.ReleaseMutex();
-				return false;
-			}
-
-			#else
+			/*弹出fifo队列的首节点*/
 			TagInfo stTagInfo = tag_queue_pop(stRQue);
 			if (stTagInfo == null)
         	{
@@ -1010,35 +990,13 @@ namespace ssms.Pages.Items
             	stRMutex.ReleaseMutex();
 				return false;
 			}
-			#endif
+	
 			//释放临界资源
             stRMutex.ReleaseMutex();
-
 			Log.WriteLog(LogType.Trace, "success get a tag info["+stTagInfo.sTid+"] from queue by tid["+sTagId+"] trigger.");
 			
 			/*====================节点合法性判断====================*/
-			#if false
-            //必须保证进场顺序和写顺序一致
-            if (!string.Equals(sTagId, stTagInfo.sTid))
-            {
-				//tag在流水线上顺序和内存中的顺序以不一致，不再处理该 tag
-				stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
-				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue is not equals with the trigger tag["+sTagId+"], this is impossible, set the tag state into error.");
-			}
-
-			//必须保证tag的step是写step
-			if (stTagInfo.iTagStep != Macro.TAG_STEP_DONE_WIRTE)
-			{
-				//tag在内存的步骤出错，不再处理该 tag
-				stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
-
-				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue step is ["+stTagInfo.iTagStep+"],not equere step["+ Macro.TAG_STEP_DONE_WIRTE+"], set the state into error.");
-			}
-			
-			Log.WriteLog(LogType.Trace, "success confirm thetid["+stTagInfo.sTid+"] in tag info is equal with trigger tid["+sTagId+"] and in step["+Macro.TAG_STEP_DONE_WIRTE+"].");
-			#else
 			tag_isTagInfoAvailable(stTagInfo, sTagId);
-			#endif
 
 			/*====================进行写操作====================*/
 			//如果tag的状态不为ok，则不需要进行写操作
@@ -1069,20 +1027,12 @@ namespace ssms.Pages.Items
 			stWMutex.WaitOne();
 
 			//遍历写队列中所有的节点，修改它们的操作步骤
-			#if false
-			foreach (TagInfo stTmpInfo in stWQue)
-			{
-                Log.WriteLog(LogType.Trace, "the tag[" + stTmpInfo.sTid + "] step now is [" + stTmpInfo.iTagStep + "], it will be discrease by 1.");
-                stTmpInfo.iTagStep--;
-			}
-			#else
 			if (!tag_queue_discreateStep(stWQue))
 			{
 				/*没有更新操作步骤成功，但是 不能影响新加入标签的处理*/
 				Log.WriteLog(LogType.Error, "error to call tag_queue_discreateStep for write queue");
 			}
-			#endif
-			
+
 			//更新节点的操作步骤
 			stTagInfo.iTagStep--;//操作步骤从TAG_STEP_DONE_WIRTE变成4
 			//添加新节点
