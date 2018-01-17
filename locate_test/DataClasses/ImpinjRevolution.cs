@@ -132,7 +132,7 @@ namespace ssms.DataClasses
 	                // Assign the TagOpComplete event handler.
 	                // This specifies which method to call
 	                // when tag operations are complete.
-	                stReader.TagOpComplete += ir_onTagOpComplete_writeTagConfire;
+	                stReader.TagOpComplete += ir_onTagOpComplete_writeConfire;
 				}
 				break;
 
@@ -681,7 +681,7 @@ namespace ssms.DataClasses
 						if (Macro.USE_OPTIMIZE_READ == 0)
 						{
 							reader.TagsReported -= ir_onTagsReported_writeTag;  //去绑定tag上报处理函数
-							reader.TagOpComplete -= ir_onTagOpComplete_writeTagConfire;
+							reader.TagOpComplete -= ir_onTagOpComplete_writeConfire;
 
 						}
 						else
@@ -1201,15 +1201,16 @@ namespace ssms.DataClasses
 		
 
 		/*在写操作测试前，进行读操作*/
-		void  ir_test_forWrite(ImpinjReader sender, TagOpReport report)
+		public void ir_test_forWrite(ImpinjReader sender, TagOpReport report)
         {
             string userData, sTid, sEpc;
             userData = sTid = sEpc = "";
-			
+            ScanItemsInStore stScanItem = new ScanItemsInStore();
+
 			Log.WriteLog(LogType.Trace, "come in ir_test_forWrite");
 
-			
-			dReadHandler = ScanItemsInStore.ir_handler_readTag;
+
+            dReadHandler = stScanItem.ir_handler_readTag;
 			
             // Loop through all the completed tag operations
             foreach (TagOpResult stRet in report)
@@ -1568,6 +1569,73 @@ namespace ssms.DataClasses
 
             sender.TagOpComplete += ir_onTagOpComplete_check;
         }
+
+		//定义tag写完成报告处理函数
+        void ir_onTagOpComplete_writeConfire(ImpinjReader sender, TagOpReport report)
+        {
+        	bool bOk = true;
+			
+        	Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_writeConfire");
+
+
+			try
+			{
+	            // Loop through all the completed tag operations.
+	            foreach (TagOpResult result in report)
+	            {
+	                // Was this completed operation a tag write operation?
+	                if (result is TagWriteOpResult)
+	                {
+	                    // Cast it to the correct type.
+	                    TagWriteOpResult writeResult = result as TagWriteOpResult;
+	                    if (writeResult.OpId == usEpcOpId)
+	                    {
+	                        
+							Log.WriteLog(LogType.Trace, "Write to EPC with op id["+usEpcOpId+"] complete, the result is "+ writeResult.Result+".");
+	                    }
+	                    else if (writeResult.OpId == usPcBitOpId)
+	                    {
+	                        
+							Log.WriteLog(LogType.Trace, "Write to PC bits with op id["+usPcBitOpId+"] complete, the result is "+writeResult.Result+".");
+	                    }
+	                    // Print out the number of words written
+
+						Log.WriteLog(LogType.Trace, "Number of words written : "+writeResult.NumWordsWritten+".");
+	                }
+					else if (result is TagReadOpResult)
+					{
+						TagReadOpResult readResult = result as TagReadOpResult;
+						
+						Log.WriteLog(LogType.Warning, "the result report for tag is read report, the op id["+readResult.OpId+"], the result is " +readResult.Result);
+						bOk = false;
+					}
+					else
+					{
+						Log.WriteLog(LogType.Warning, "the result report for tag is not write report");
+						bOk = false;
+					}
+	            }
+
+				//设置tag的写状态
+	            if (bOk)
+	            {
+	                TagInfo stTagInfo = stTagDic[usEpcOpId];
+	                stTagInfo.iTagWState = Macro.TAG_WRITE_FINISH;
+
+	                Log.WriteLog(LogType.Trace, "success to set tag[" + stTagInfo.sTid + "] write state into finish.");
+
+					//移除节点
+					stTagDic.Remove(usEpcOpId);
+					Log.WriteLog(LogType.Trace, "success to remove tag info from dictionary with ecp op id["+usEpcOpId+"]");
+
+	            }
+			}
+			catch (Exception e)
+			{
+				Log.WriteLog(LogType.Error, "the exception is "+e.Message+"");
+			}
+        }
+		
 		
         //定义tag上报处理函数
         void ir_onTagsReported_readTag(ImpinjReader sender, TagReport report)
@@ -1685,72 +1753,7 @@ namespace ssms.DataClasses
 			
         }
 
-        //定义tag写完成报告处理函数
-        void ir_onTagOpComplete_writeTagConfire(ImpinjReader sender, TagOpReport report)
-        {
-        	bool bOk = true;
-			
-        	Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_writeTagConfire");
 
-
-			try
-			{
-	            // Loop through all the completed tag operations.
-	            foreach (TagOpResult result in report)
-	            {
-	                // Was this completed operation a tag write operation?
-	                if (result is TagWriteOpResult)
-	                {
-	                    // Cast it to the correct type.
-	                    TagWriteOpResult writeResult = result as TagWriteOpResult;
-	                    if (writeResult.OpId == usEpcOpId)
-	                    {
-	                        
-							Log.WriteLog(LogType.Trace, "Write to EPC with op id["+usEpcOpId+"] complete, the result is "+ writeResult.Result+".");
-	                    }
-	                    else if (writeResult.OpId == usPcBitOpId)
-	                    {
-	                        
-							Log.WriteLog(LogType.Trace, "Write to PC bits with op id["+usPcBitOpId+"] complete, the result is "+writeResult.Result+".");
-	                    }
-	                    // Print out the number of words written
-
-						Log.WriteLog(LogType.Trace, "Number of words written : "+writeResult.NumWordsWritten+".");
-	                }
-					else if (result is TagReadOpResult)
-					{
-						TagReadOpResult readResult = result as TagReadOpResult;
-						
-						Log.WriteLog(LogType.Warning, "the result report for tag is read report, the op id["+readResult.OpId+"], the result is " +readResult.Result);
-						bOk = false;
-					}
-					else
-					{
-						Log.WriteLog(LogType.Warning, "the result report for tag is not write report");
-						bOk = false;
-					}
-	            }
-
-				//设置tag的写状态
-	            if (bOk)
-	            {
-	                TagInfo stTagInfo = stTagDic[usEpcOpId];
-	                stTagInfo.iTagWState = Macro.TAG_WRITE_FINISH;
-
-	                Log.WriteLog(LogType.Trace, "success to set tag[" + stTagInfo.sTid + "] write state into finish.");
-
-					//移除节点
-					stTagDic.Remove(usEpcOpId);
-					Log.WriteLog(LogType.Trace, "success to remove tag info from dictionary with ecp op id["+usEpcOpId+"]");
-
-	            }
-			}
-			catch (Exception e)
-			{
-				Log.WriteLog(LogType.Error, "the exception is "+e.Message+"");
-			}
-        }
-		
 
 		//定义tag上报处理函数
         void ir_onTagsReported_checkTag(ImpinjReader sender, TagReport report)

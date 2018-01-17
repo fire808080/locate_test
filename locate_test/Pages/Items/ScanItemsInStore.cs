@@ -848,13 +848,33 @@ namespace ssms.Pages.Items
 			return true;
 		}
 
+		/*减少队列中各个节点的操作步骤*/
+		private bool tag_queue_discreateStep(Queue<TagInfo> stList)
+		{
+			Log.WriteLog(LogType.Trace, "come in tag_queue_discreateStep");
+
+			if (stList == null)
+			{
+				Log.WriteLog(LogType.Error, "the param is null");
+				return false;
+			}
+			
+			//遍历当前队列中所有的节点，修改它们的操作步骤
+			foreach (TagInfo stTmpInfo in stList)
+			{
+                Log.WriteLog(LogType.Trace, "the tag[" + stTmpInfo.sTid + "] step now is [" + stTmpInfo.iTagStep + "], it will be discrease by 1.");
+                stTmpInfo.iTagStep--;
+			}
+
+			return true;
+		}
 		
 		//把tag插入入场队列
-        public static bool ir_handler_readTag(TagInfo stTagInfo, EventArgs e, Queue<TagInfo> stTagList, ref Mutex stMutex)
+        public bool ir_handler_readTag(TagInfo stTagInfo, EventArgs e, Queue<TagInfo> stTagList, ref Mutex stMutex)
 		{
         	Log.WriteLog(LogType.Trace, "come in ir_handler_readTag");
 
-			if (stTagInfo == null || stTagList == null)
+			if (stTagInfo == null || stTagList == null || stMutex == null)
 			{
 				Log.WriteLog(LogType.Error, "the params is null");
 				return false;
@@ -865,12 +885,13 @@ namespace ssms.Pages.Items
 			stMutex.WaitOne();
 
 			//遍历当前队列中所有的节点，修改它们的操作步骤
-			foreach (TagInfo stTmpInfo in stTagList)
-			{
-                Log.WriteLog(LogType.Trace, "the tag[" + stTmpInfo.sTid + "] step now is [" + stTmpInfo.iTagStep + "], it will be discrease by 1.");
-                stTmpInfo.iTagStep--;
-			}
 
+			if (!tag_queue_discreateStep(stTagList))
+			{
+				Log.WriteLog(LogType.Error, "error to call tag_queue_discreateStep");
+				return false;
+			}
+			
 			#if false
             //debug
             foreach (TagInfo stTmpInfo in stTagList)
