@@ -806,22 +806,6 @@ namespace ssms.Pages.Items
 
 
 
-		/*把tag信息显示到前端*/
-		private bool ir_show_tagInfo(TagInfo stTagInfo, bool bOk)
-		{
-			string sTagInfo = "Tid: "+stTagInfo.sTid +" Epc: " + stTagInfo.sEpc;
-
-			if (bOk == true)
-			{
-				lbItems.Items.Add(sTagInfo);
-			}
-			else
-			{
-				lbxMissing.Items.Add(sTagInfo);
-			}
-
-			return true;
-		}
 
 		bool tag_queue_showInfo(Queue<TagInfo> stQue)
 		{
@@ -894,44 +878,6 @@ namespace ssms.Pages.Items
 				return null;
 			}
 		}
-		
-		//把tag插入入场队列
-        public bool ir_handler_readTag(TagInfo stTagInfo, EventArgs e, Queue<TagInfo> stRQue, ref Mutex stMutex)
-		{
-        	Log.WriteLog(LogType.Trace, "come in ir_handler_readTag");
-
-			if (stTagInfo == null || stRQue == null || stMutex == null)
-			{
-				Log.WriteLog(LogType.Error, "the params is null");
-				return false;
-			}
-
-			/*====================更新读队列现有节点操作步骤====================*/
-			//锁临界资源
-			stMutex.WaitOne();
-
-			//遍历当前队列中所有的节点，修改它们的操作步骤
-			if (!tag_queue_discreateStep(stRQue))
-			{
-				/*没有更新操作步骤成功，但是 不能影响新加入标签的处理*/
-				Log.WriteLog(LogType.Error, "error to call tag_queue_discreateStep for read queue");
-			}
-			
-			#if false
-            //debug
-			tag_queue_showInfo(stRQue);
-			#endif
-
-			/*====================插入读队列====================*/
-			/*插入fifo队列*/
-			stRQue.Enqueue(stTagInfo);
-			Log.WriteLog(LogType.Trace, "success to add tag["+stTagInfo.sTid+"] into queue");
-			//释放临界资源
-            stMutex.ReleaseMutex();
-
-            return true;
-            
-        }
 
 		//判断fifo队列中的节点是否可用
 		bool tag_isTagInfoAvailable(TagInfo stTagInfo, string sTId, int iStep)
@@ -971,6 +917,64 @@ namespace ssms.Pages.Items
             	return false;
 			}
 		}
+
+		
+		/*把tag信息显示到前端*/
+		private bool ir_show_tagInfo(TagInfo stTagInfo, bool bOk)
+		{
+			string sTagInfo = "Tid: "+stTagInfo.sTid +" Epc: " + stTagInfo.sEpc;
+
+			if (bOk == true)
+			{
+				lbItems.Items.Add(sTagInfo);
+			}
+			else
+			{
+				lbxMissing.Items.Add(sTagInfo);
+			}
+
+			return true;
+		}
+		
+		//把tag插入入场队列
+        public bool ir_handler_readTag(TagInfo stTagInfo, EventArgs e, Queue<TagInfo> stRQue, ref Mutex stMutex)
+		{
+        	Log.WriteLog(LogType.Trace, "come in ir_handler_readTag");
+
+			if (stTagInfo == null || stRQue == null || stMutex == null)
+			{
+				Log.WriteLog(LogType.Error, "the params is null");
+				return false;
+			}
+
+			/*====================更新读队列现有节点操作步骤====================*/
+			//锁临界资源
+			stMutex.WaitOne();
+
+			//遍历当前队列中所有的节点，修改它们的操作步骤
+			if (!tag_queue_discreateStep(stRQue))
+			{
+				/*没有更新操作步骤成功，但是 不能影响新加入标签的处理*/
+				Log.WriteLog(LogType.Error, "error to call tag_queue_discreateStep for read queue");
+			}
+			
+			#if false
+            //debug
+			tag_queue_showInfo(stRQue);
+			#endif
+
+			/*====================插入读队列====================*/
+			/*插入fifo队列*/
+			stRQue.Enqueue(stTagInfo);
+			Log.WriteLog(LogType.Trace, "success to add tag["+stTagInfo.sTid+"] into queue");
+			//释放临界资源
+            stMutex.ReleaseMutex();
+
+            return true;
+            
+        }
+
+
 		
 		/*参数：
 		*EventArgs e, 
