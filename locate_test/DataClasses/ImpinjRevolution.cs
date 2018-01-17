@@ -199,7 +199,7 @@ namespace ssms.DataClasses
 				case Macro.READER_TYPE_CHECKR:
 				{
 					//绑定tag上报处理函数
-					stReader.TagOpComplete += ir_onTagOpComplete_checkTag;   
+					stReader.TagOpComplete += ir_onTagOpComplete_check;   
 				}
 				break;
 								
@@ -700,7 +700,7 @@ namespace ssms.DataClasses
 						}
 						else
 						{
-							reader.TagOpComplete -= ir_onTagOpComplete_checkTag;
+							reader.TagOpComplete -= ir_onTagOpComplete_check;
 						}
 					}
 					break;
@@ -1424,6 +1424,39 @@ namespace ssms.DataClasses
 		}
 
 		
+		/*处理读操作结果集*/
+		bool ir_check_procRResult(TagReadOpResult stResult, ImpinjReader sender)
+        {
+			string sTid, sEpc;
+			sTid = sEpc = "";
+
+			Log.WriteLog(LogType.Trace, "come in ir_check_procRResult");
+			
+            sEpc = stResult.Tag.Epc.ToHexString();
+
+            if (stResult.OpId == Macro.TAG_OP_ID_CHECK)
+            {
+                sTid = stResult.Data.ToHexString();
+				Log.WriteLog(LogType.Trace, "success to get tid["+sTid+"], epc["+sEpc+"] with operation id["+stResult.OpId+"] in check process.");
+
+				if (!ir_check_processTag(stResult.Tag, sTid, sender))
+				{
+					Log.WriteLog(LogType.Error, "Error to call ir_check_processTag");
+
+					return false;
+				}
+				
+            }
+			else
+			{
+				//tid 操作出错 
+				Log.WriteLog(LogType.Error, "the operation id["+stResult.OpId+"] in result is not equal with regist operation id["+Macro.TAG_OP_ID_CHECK+"] in check process.");
+				return false;
+			}
+
+			return true;
+		}
+		
         //定义tag上报处理函数
         void ir_onTagOpComplete_read(ImpinjReader sender, TagOpReport report)
         {
@@ -1504,45 +1537,28 @@ namespace ssms.DataClasses
             sender.TagOpComplete += ir_onTagOpComplete_write;
         }
 
+		
 		//定义tag上报处理函数
-        void ir_onTagOpComplete_checkTag(ImpinjReader sender, TagOpReport report)
+        void ir_onTagOpComplete_check(ImpinjReader sender, TagOpReport report)
         {
             string userData, sTid, sEpc;
             userData = sTid = sEpc = "";
 			
-			Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_checkTag");
+			Log.WriteLog(LogType.Trace, "come in ir_onTagOpComplete_check");
 
-			sender.TagOpComplete -= ir_onTagOpComplete_checkTag;
+			sender.TagOpComplete -= ir_onTagOpComplete_check;
 			
-            // Loop through all the completed tag operations
             foreach (TagOpResult stRet in report)
             {
-                // Was this completed operation a tag read operation?
                 if (stRet is TagReadOpResult)
                 {
-                    // Cast it to the correct type.
                     TagReadOpResult stCRet = stRet as TagReadOpResult;
 
-                    // Save the EPC
-                    sEpc = stCRet.Tag.Epc.ToHexString();
-
-                    // Are these the results for User memory or TID?
-                    if (stCRet.OpId == Macro.TAG_OP_ID_CHECK)
-                    {
-                        sTid = stCRet.Data.ToHexString();
-						Log.WriteLog(LogType.Trace, "success to get tid["+sTid+"], epc["+sEpc+"] with operation id["+stCRet.OpId+"] in check process.");
-
-						if (!ir_check_processTag(stCRet.Tag, sTid, sender))
-						{
-							Log.WriteLog(LogType.Error, "Error to call ir_check_processTag");
-						}
-						
-                    }
-					else
+					if (!ir_check_procRResult(stCRet, sender))
 					{
-						//tid 操作出错 
-						Log.WriteLog(LogType.Error, "the operation id["+stCRet.OpId+"] in result is not equal with regist operation id["+Macro.TAG_OP_ID_CHECK+"] in check process.");
+						Log.WriteLog(LogType.Error, "error to call ir_check_procRResult");
 					}
+					
                 }
 				else
 				{
@@ -1550,7 +1566,7 @@ namespace ssms.DataClasses
 				}
             }
 
-            sender.TagOpComplete += ir_onTagOpComplete_checkTag;
+            sender.TagOpComplete += ir_onTagOpComplete_check;
         }
 		
         //定义tag上报处理函数
