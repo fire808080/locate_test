@@ -1463,7 +1463,7 @@ namespace ssms.DataClasses
 
 			sender.TagOpComplete -= ir_onTagOpComplete_write;
 			
-			#if true
+			#if false
 			if (bTest)
 			{
 				ir_test_forWrite(sender, report);

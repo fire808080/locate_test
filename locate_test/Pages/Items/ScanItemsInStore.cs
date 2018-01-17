@@ -505,7 +505,7 @@ namespace ssms.Pages.Items
 		}
 
 		//将item信息显示在list box控件上
-		private bool scanItem_itemList2ListBox(ref List<inventory>  listInv)
+		private bool scanItem_itemList2ListBox(ref List<inventory> listInv)
 		{
 			List<string> listItemStr = new List<string>();
 			
@@ -519,13 +519,17 @@ namespace ssms.Pages.Items
 
 			for (int iIdx = 0; iIdx < listInv.Count; iIdx++)
 			{
-				listItemStr.Add(listInv[iIdx].EPC + "     " + listInv[iIdx].ProductName + " "+ listInv[iIdx].ProductDescription);
+				//listItemStr.Add(listInv[iIdx].EPC + " " + listInv[iIdx].ProductName + " "+ listInv[iIdx].ProductDescription);
+				//Log.WriteLog(LogType.Trace, "success to add item["+listInv[iIdx].itemID+"] with epc ["+listInv[iIdx].EPC+"]  into front");
+
+				lbItems.Items.Add(listInv[iIdx].EPC + " " + listInv[iIdx].ProductName);
 				Log.WriteLog(LogType.Trace, "success to add item["+listInv[iIdx].itemID+"] with epc ["+listInv[iIdx].EPC+"]  into front");
+				
 			}
 
-			lbItems.DataSource = listItemStr;
+			//lbItems.DataSource = listItemStr;
 
-			Log.WriteLog(LogType.Trace, "success to load   "+listInv.Count+" item(s) info into list box");
+			Log.WriteLog(LogType.Trace, "success to load "+listInv.Count+" item(s) info into list box");
 			return true;
 		}
 
@@ -826,6 +830,24 @@ namespace ssms.Pages.Items
 
 			return true;
 		}
+
+		/*把tag信息显示到前端*/
+		private bool ir_show_tagInfo(TagInfo stTagInfo, bool bOk)
+		{
+			string sTagInfo = "Tid: "+stTagInfo.sTid +" Epc: " + stTagInfo.sEpc;
+
+			if (bOk == true)
+			{
+				lbItems.Items.Add(sTagInfo);
+			}
+			else
+			{
+				lbxMissing.Items.Add(sTagInfo);
+			}
+
+			return true;
+		}
+
 		
 		//把tag插入入场队列
         public static bool ir_handler_readTag(TagInfo stTagInfo, EventArgs e, Queue<TagInfo> stTagList, ref Mutex stMutex)
@@ -864,7 +886,7 @@ namespace ssms.Pages.Items
 			//释放临界资源
             stMutex.ReleaseMutex();
 
-			/*显示到前端*/
+			
 			
             return true;
             
@@ -1058,14 +1080,15 @@ namespace ssms.Pages.Items
 			Log.WriteLog(LogType.Trace, "success to write epc["+stTagInfo.sEpc+"] into tag["+stTagInfo.sTid+"]");
 
 			//在前台显示，保存到数据库等操作
-			
+			ir_show_tagInfo(stTagInfo, true);
             return true;
 
 
 			//发送gpo信号，剔除错误的tag
 			proc_err_tag:
 			Log.WriteLog(LogType.Trace, "goto send gpo signal for tag["+sTagId+"]");
-
+			/*显示到前端*/
+			ir_show_tagInfo(stTagInfo, false);
 			return true;  
 			
 			
@@ -1076,20 +1099,21 @@ namespace ssms.Pages.Items
         {
             this.Invoke(new MethodInvoker(delegate ()
             {
+            	/*把找到的加载到前端显示*/
                 lbItems.DataSource = null;
                 lbItems.Items.Clear();
-            for(int i = 0; i < found.Count; i++)
-            {
-                lbItems.Items.Add("ItemID: " + found[i].itemID + "  Product: " + found[i].ProductName + "  Tag EPC: "+ found[i].EPC);
-            }
+	            for(int i = 0; i < found.Count; i++)
+	            {
+	                lbItems.Items.Add("ItemID: " + found[i].itemID + "  Product: " + found[i].ProductName + "  Tag EPC: "+ found[i].EPC);
+	            }
             
-
-            lbxMissing.DataSource = null;
-            lbxMissing.Items.Clear();
-            for (int i = 0; i < missing.Count; i++)
-            {
-                lbxMissing.Items.Add("ItemID: " + missing[i].itemID + "  Product: " + missing[i].ProductName + "  Tag EPC: " + missing[i].EPC);
-            }
+				/*把没有找到的加载到前端显示*/
+            	lbxMissing.DataSource = null;
+            	lbxMissing.Items.Clear();
+            	for (int i = 0; i < missing.Count; i++)
+	            {
+	                lbxMissing.Items.Add("ItemID: " + missing[i].itemID + "  Product: " + missing[i].ProductName + "  Tag EPC: " + missing[i].EPC);
+	            }
             }));
 
         }
