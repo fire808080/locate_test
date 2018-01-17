@@ -718,6 +718,7 @@ namespace ssms.Pages.Items
 			
 			Log.WriteLog(LogType.Trace, "Adding a write operation to change the EPC from :"+currentEpc+" to "+newEpc+"");
 
+			try{
             // Create a tag operation sequence.
             // You can add multiple read, write, lock, kill and QT
             // operations to this sequence.
@@ -786,7 +787,8 @@ namespace ssms.Pages.Items
 				stTagInfo.iTagWState = Macro.TAG_WRITE_MODIFY_LEN;
 			}
 
-			
+			//将最新的ecp值记录到tag info中，供后续使用
+			stTagInfo.sEpc = newEpc;
 			
             // Add the tag operation sequence to the reader.
             // The reader supports multiple sequences.
@@ -794,6 +796,12 @@ namespace ssms.Pages.Items
 
 			Log.WriteLog(LogType.Trace, "success to add operation for tag["+stTagInfo.sTid+"] with ecp op id["+usEpcOpId+"] and pc bit op id["+usPcBitOpId+"]");
 			return true;
+			}
+			catch(Exception ex)
+			{
+				Log.WriteLog(LogType.Error, "error at tag_writeTag, the message is "+ex.Message+"");
+				return false;;
+			}
         }
 
 
@@ -926,29 +934,42 @@ namespace ssms.Pages.Items
         }
 
 		//判断fifo队列中的节点是否可用
-		void tag_isTagInfoAvailable(TagInfo stTagInfo, string sTId)
+		bool tag_isTagInfoAvailable(TagInfo stTagInfo, string sTId, int iStep)
         {
         	Log.WriteLog(LogType.Trace, "come in tag_isTagInfoAvailable");
+			bool bOk = true;
 			
         	//必须保证进场顺序和写顺序一致
             if (!string.Equals(sTId, stTagInfo.sTid))
             {
 				//tag在流水线上顺序和内存中的顺序以不一致，不再处理该 tag
 				stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
+
+				bOk = false;
 				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue is not equals with the trigger tag["+sTId+"], this is impossible, set the tag state into error.");
+				
 			}
 
 			//必须保证tag的step是写step
-			if (stTagInfo.iTagStep != Macro.TAG_STEP_DONE_WIRTE)
+			if (stTagInfo.iTagStep != iStep)
 			{
 				//tag在内存的步骤出错，不再处理该 tag
 				stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
-				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue step is ["+stTagInfo.iTagStep+"],not equere step["+ Macro.TAG_STEP_DONE_WIRTE+"], set the state into error.");
+
+				bOk = false;
+				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue step is ["+stTagInfo.iTagStep+"],not equere step["+ iStep+"], set the state into error.");
 			}
 			
-			Log.WriteLog(LogType.Trace, "success confirm thetid["+stTagInfo.sTid+"] in tag info is equal with trigger tid["+sTId+"] and in step["+Macro.TAG_STEP_DONE_WIRTE+"].");
 			
-            return ;
+			if (bOk == true)
+			{
+				Log.WriteLog(LogType.Trace, "success confirm thetid["+stTagInfo.sTid+"] in tag info is equal with trigger tid["+sTId+"] and in step["+iStep+"].");
+				return true;
+			}
+			else
+			{
+            	return false;
+			}
 		}
 		
 		/*参数：
@@ -985,7 +1006,7 @@ namespace ssms.Pages.Items
 			TagInfo stTagInfo = tag_queue_pop(stRQue);
 			if (stTagInfo == null)
         	{
-				Log.WriteLog(LogType.Error, "error:、there is not tag in input queue, but the write process is triggered by tag["+sTagId+"], this is impossible.");
+				Log.WriteLog(LogType.Error, "error:、there is not tag in read queue, but the write process is triggered by tag["+sTagId+"], this is impossible.");
 				//释放临界资源
             	stRMutex.ReleaseMutex();
 				return false;
@@ -993,10 +1014,10 @@ namespace ssms.Pages.Items
 	
 			//释放临界资源
             stRMutex.ReleaseMutex();
-			Log.WriteLog(LogType.Trace, "success get a tag info["+stTagInfo.sTid+"] from queue by tid["+sTagId+"] trigger.");
+			Log.WriteLog(LogType.Trace, "success get a tag info["+stTagInfo.sTid+"] from read queue by tid["+sTagId+"] trigger.");
 			
 			/*====================节点合法性判断====================*/
-			tag_isTagInfoAvailable(stTagInfo, sTagId);
+			tag_isTagInfoAvailable(stTagInfo, sTagId, Macro.TAG_STEP_DONE_WIRTE);
 
 			/*====================进行写操作====================*/
 			//如果tag的状态不为ok，则不需要进行写操作
@@ -1046,7 +1067,7 @@ namespace ssms.Pages.Items
 
         }
 
-        bool ir_reader_checkTag(ImpinjReader stReader, string sTagId, string sEpc, Queue<TagInfo> stWList,  Mutex stWMutex)
+        bool ir_reader_checkTag(ImpinjReader stReader, string sTagId, string sEpc, Queue<TagInfo> stWQue,  Mutex stWMutex)
         {
         	Log.WriteLog(LogType.Trace, "come in ir_reader_checkTag");
 
@@ -1054,7 +1075,8 @@ namespace ssms.Pages.Items
 
 			stWMutex.WaitOne();
 
-			if (stWList.Count == 0)
+			#if false
+			if (stWQue.Count == 0)
 			{
 				Log.WriteLog(LogType.Error, "error:there is not tag in the write list, but the check process is trigger by tag["+sTagId+"], this is impossible ");
 				//释放临界资源
@@ -1063,7 +1085,7 @@ namespace ssms.Pages.Items
 			}
 
 			/*tag出队列*/
-			TagInfo stTagInfo = stWList.Dequeue();
+			TagInfo stTagInfo = stWQue.Dequeue();
 			if (stTagInfo == null)
         	{
 				Log.WriteLog(LogType.Error, "error:there is not tag in write list, but the check  process is triggered by tag["+sTagId+"], this is impossible.");
@@ -1071,10 +1093,22 @@ namespace ssms.Pages.Items
             	stWMutex.ReleaseMutex();
 				return false;
 			}
-
+			#else
+			TagInfo stTagInfo = tag_queue_pop(stWQue);
+			if (stTagInfo == null)
+        	{
+				Log.WriteLog(LogType.Error, "error:there is not tag in write list, but the check  process is triggered by tag["+sTagId+"], this is impossible.");
+				//释放临界资源
+            	stWMutex.ReleaseMutex();
+				return false;
+			}
+			#endif
 			stWMutex.ReleaseMutex();
 
+			Log.WriteLog(LogType.Trace, "success get a tag info["+stTagInfo.sTid+"] from write queue by tid["+sTagId+"] trigger.");
+			
 			/*====================节点合法性判断====================*/
+			#if false
             //必须保证进场顺序和写顺序一致
             if (!string.Equals(sTagId, stTagInfo.sTid))
             {
@@ -1091,7 +1125,13 @@ namespace ssms.Pages.Items
 				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue step is ["+stTagInfo.iTagStep+"],not equere step["+ Macro.TAG_STEP_DONE_WIRTE+"], set the tag into error.");
 				goto proc_err_tag;
 			}
-
+			#else
+			if (!tag_isTagInfoAvailable(stTagInfo, sTagId, Macro.TAG_STEP_DONE_CHECK))
+			{
+				goto proc_err_tag;
+			}
+			#endif
+			
 			/*====================进行检查操作====================*/
 			//如果tag的状态不为ok，则不需要进行检查操作
 			if (stTagInfo.iTagState == Macro.TAG_STATE_ERROR)
@@ -1106,6 +1146,7 @@ namespace ssms.Pages.Items
 			}
 			else if (stTagInfo.sEpc != sEpc)
 			{
+				//判断epc是否被正确入
 				Log.WriteLog(LogType.Trace, "the epc["+sEpc+"] from trigger is not equal with the epc["+stTagInfo.sEpc+"] in memery , so take the tag off from the flow.");
 				goto proc_err_tag;
 			}
