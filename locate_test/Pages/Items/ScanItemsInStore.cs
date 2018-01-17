@@ -38,7 +38,7 @@ namespace ssms.Pages.Items
         public List<string> check = new List<string>();
 
 		
-		Random stRand = new Random();
+		Random gstRand = new Random();
 		
 
 		
@@ -698,10 +698,10 @@ namespace ssms.Pages.Items
         }
 
 
-		//bool ir_writeTag(ref ImpinjReader stReader, ref TagInfo stTagInfo,string newEpc, ushort usEpcOpId, ushort usPcBitOpId)
-		bool ir_writeTag(ImpinjReader stReader, TagInfo stTagInfo,string newEpc, ushort usEpcOpId, ushort usPcBitOpId)
+		//bool tag_writeTag(ref ImpinjReader stReader, ref TagInfo stTagInfo,string newEpc, ushort usEpcOpId, ushort usPcBitOpId)
+		bool tag_writeTag(ImpinjReader stReader, TagInfo stTagInfo,string newEpc, ushort usEpcOpId, ushort usPcBitOpId)
         {
-        	Log.WriteLog(LogType.Trace, "come in ir_writeTag");
+        	Log.WriteLog(LogType.Trace, "come in tag_writeTag");
 
 			string currentEpc;
             ushort currentPcBits;
@@ -905,8 +905,8 @@ namespace ssms.Pages.Items
 			//遍历当前队列中所有的节点，修改它们的操作步骤
 			if (!tag_queue_discreateStep(stRQue))
 			{
-				Log.WriteLog(LogType.Error, "error to call tag_queue_discreateStep");
-				return false;
+				/*没有更新操作步骤成功，但是 不能影响新加入标签的处理*/
+				Log.WriteLog(LogType.Error, "error to call tag_queue_discreateStep for read queue");
 			}
 			
 			#if false
@@ -926,9 +926,29 @@ namespace ssms.Pages.Items
         }
 
 		//判断fifo队列中的节点是否可用
-		bool tag_isTagInfo_available()
+		void tag_isTagInfoAvailable(TagInfo stTagInfo, string sTId)
         {
-            return true;
+        	Log.WriteLog(LogType.Trace, "come in tag_isTagInfoAvailable");
+			
+        	//必须保证进场顺序和写顺序一致
+            if (!string.Equals(sTId, stTagInfo.sTid))
+            {
+				//tag在流水线上顺序和内存中的顺序以不一致，不再处理该 tag
+				stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
+				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue is not equals with the trigger tag["+sTId+"], this is impossible, set the tag state into error.");
+			}
+
+			//必须保证tag的step是写step
+			if (stTagInfo.iTagStep != Macro.TAG_STEP_DONE_WIRTE)
+			{
+				//tag在内存的步骤出错，不再处理该 tag
+				stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
+				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue step is ["+stTagInfo.iTagStep+"],not equere step["+ Macro.TAG_STEP_DONE_WIRTE+"], set the state into error.");
+			}
+			
+			Log.WriteLog(LogType.Trace, "success confirm thetid["+stTagInfo.sTid+"] in tag info is equal with trigger tid["+sTId+"] and in step["+Macro.TAG_STEP_DONE_WIRTE+"].");
+			
+            return ;
 		}
 		
 		/*参数：
@@ -948,9 +968,16 @@ namespace ssms.Pages.Items
 
 			if (stRQue == null|| stWQue == null)
 			{
-				Log.WriteLog(LogType.Error, "the params is null");
+				Log.WriteLog(LogType.Error, "the   params with queue is null");
 				return false;
 			}
+
+			if (stRMutex == null|| stWMutex == null)
+			{
+				Log.WriteLog(LogType.Error, "the    params with mutex is null");
+				return false;
+			}
+			
 
 			//锁临界资源
 			stRMutex.WaitOne();
@@ -987,9 +1014,10 @@ namespace ssms.Pages.Items
 			//释放临界资源
             stRMutex.ReleaseMutex();
 
-			Log.WriteLog(LogType.Trace, "success get a tag info["+stTagInfo.sTid+"] from queue with tid["+sTagId+"] trigger.");
+			Log.WriteLog(LogType.Trace, "success get a tag info["+stTagInfo.sTid+"] from queue by tid["+sTagId+"] trigger.");
 			
 			/*====================节点合法性判断====================*/
+			#if false
             //必须保证进场顺序和写顺序一致
             if (!string.Equals(sTagId, stTagInfo.sTid))
             {
@@ -1008,7 +1036,9 @@ namespace ssms.Pages.Items
 			}
 			
 			Log.WriteLog(LogType.Trace, "success confirm thetid["+stTagInfo.sTid+"] in tag info is equal with trigger tid["+sTagId+"] and in step["+Macro.TAG_STEP_DONE_WIRTE+"].");
-
+			#else
+			tag_isTagInfoAvailable(stTagInfo, sTagId);
+			#endif
 
 			/*====================进行写操作====================*/
 			//如果tag的状态不为ok，则不需要进行写操作
@@ -1018,19 +1048,16 @@ namespace ssms.Pages.Items
 			}
 			else
 			{
-　　				
-                    int iRnd = stRand.Next(100, 65535);
-                    usEpcOpId    = (ushort)iRnd;
-					usPcBitOpId = (ushort)(usEpcOpId+1);
+                int iRnd = gstRand.Next(100, 65535);
+                usEpcOpId    = (ushort)iRnd;
+				usPcBitOpId = (ushort)(usEpcOpId+1);
 				
 				//对tag进行写操作
-				if (!ir_writeTag(stReader, stTagInfo, "55556666777788889999", usEpcOpId, usPcBitOpId))
+				if (!tag_writeTag(stReader, stTagInfo, "55556666777788889999", usEpcOpId, usPcBitOpId))
 				{
 					stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
 					Log.WriteLog(LogType.Trace, "error:set tag["+stTagInfo.sTid+"]write operation error, so set its state into error");
 				}
-
-				
 
 				//tag加入dic字典
 				stDic.Add(usEpcOpId, stTagInfo);
@@ -1042,12 +1069,20 @@ namespace ssms.Pages.Items
 			stWMutex.WaitOne();
 
 			//遍历写队列中所有的节点，修改它们的操作步骤
+			#if false
 			foreach (TagInfo stTmpInfo in stWQue)
 			{
                 Log.WriteLog(LogType.Trace, "the tag[" + stTmpInfo.sTid + "] step now is [" + stTmpInfo.iTagStep + "], it will be discrease by 1.");
                 stTmpInfo.iTagStep--;
 			}
-
+			#else
+			if (!tag_queue_discreateStep(stWQue))
+			{
+				/*没有更新操作步骤成功，但是 不能影响新加入标签的处理*/
+				Log.WriteLog(LogType.Error, "error to call tag_queue_discreateStep for write queue");
+			}
+			#endif
+			
 			//更新节点的操作步骤
 			stTagInfo.iTagStep--;//操作步骤从TAG_STEP_DONE_WIRTE变成4
 			//添加新节点
