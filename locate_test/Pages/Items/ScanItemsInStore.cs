@@ -796,40 +796,7 @@ namespace ssms.Pages.Items
 			return true;
         }
 
-				/*从fifo队列中弹出一个节点*/
-		bool ir_getTagInfo_fromQueue(Queue<TagInfo> stList, Mutex stMutex, ref TagInfo stTagInfo)
-        {
-			Log.WriteLog(LogType.Trace, "come in ir_getTagInfo_fromQueue");
 
-			stTagInfo = null;
-
-			
-			//锁临界资源
-			stMutex.WaitOne();
-
-			if (stList.Count == 0)
-			{
-				Log.WriteLog(LogType.Error, "error:1、there is not tag in queue list.");
-				//释放临界资源
-            	stMutex.ReleaseMutex();
-				return false;
-			}
-			
-			/*tag出队列*/
-			stTagInfo = stList.Dequeue();
-			if (stTagInfo == null)
-        	{
-				Log.WriteLog(LogType.Error, "error:2、there is not tag in queue list.");
-				//释放临界资源
-            	stMutex.ReleaseMutex();
-				return false;
-			}
-
-			//释放临界资源
-            stMutex.ReleaseMutex();
-
-			return true;
-		}
 
 		/*把tag信息显示到前端*/
 		private bool ir_show_tagInfo(TagInfo stTagInfo, bool bOk)
@@ -848,19 +815,38 @@ namespace ssms.Pages.Items
 			return true;
 		}
 
-		/*减少队列中各个节点的操作步骤*/
-		private bool tag_queue_discreateStep(Queue<TagInfo> stList)
+		bool tag_queue_showInfo(Queue<TagInfo> stQue)
 		{
-			Log.WriteLog(LogType.Trace, "come in tag_queue_discreateStep");
+			Log.WriteLog(LogType.Trace, "come in tag_queue_showInfo");
 
-			if (stList == null)
+			if (stQue == null)
 			{
 				Log.WriteLog(LogType.Error, "the param is null");
 				return false;
 			}
 			
 			//遍历当前队列中所有的节点，修改它们的操作步骤
-			foreach (TagInfo stTmpInfo in stList)
+			foreach (TagInfo stTmpInfo in stQue)
+			{
+                Log.WriteLog(LogType.Trace, "the tag[" + stTmpInfo.sTid + "] step now is [" + stTmpInfo.iTagStep + "].");
+			}
+
+			return true;
+		}
+
+		/*减少队列中各个节点的操作步骤*/
+		bool tag_queue_discreateStep(Queue<TagInfo> stQue)
+		{
+			Log.WriteLog(LogType.Trace, "come in tag_queue_discreateStep");
+
+			if (stQue == null)
+			{
+				Log.WriteLog(LogType.Error, "the param is null");
+				return false;
+			}
+			
+			//遍历当前队列中所有的节点，修改它们的操作步骤
+			foreach (TagInfo stTmpInfo in stQue)
 			{
                 Log.WriteLog(LogType.Trace, "the tag[" + stTmpInfo.sTid + "] step now is [" + stTmpInfo.iTagStep + "], it will be discrease by 1.");
                 stTmpInfo.iTagStep--;
@@ -868,13 +854,45 @@ namespace ssms.Pages.Items
 
 			return true;
 		}
+
+		/*从fifo队列中弹出一个节点*/
+		TagInfo tag_queue_pop(Queue<TagInfo> stQue)
+        {
+			Log.WriteLog(LogType.Trace, "come in tag_queue_pop");
+
+			TagInfo stTagInfo = null;
+
+			try
+			{
+				if (stQue.Count == 0)
+				{
+					Log.WriteLog(LogType.Error, "error:1、there is not tag in queue list.");
+					return null;
+				}
+			
+				/*tag出队列*/
+				stTagInfo = stQue.Dequeue();
+				if (stTagInfo == null)
+	        	{
+					Log.WriteLog(LogType.Error, "error:2、there is not tag in queue list.");
+					return null;
+				}
+
+				return stTagInfo;
+			}
+			catch (Exception ex)
+			{
+				Log.WriteLog(LogType.Error, "the execption is "+ex.Message+"");
+				return null;
+			}
+		}
 		
 		//把tag插入入场队列
-        public bool ir_handler_readTag(TagInfo stTagInfo, EventArgs e, Queue<TagInfo> stTagList, ref Mutex stMutex)
+        public bool ir_handler_readTag(TagInfo stTagInfo, EventArgs e, Queue<TagInfo> stRQue, ref Mutex stMutex)
 		{
         	Log.WriteLog(LogType.Trace, "come in ir_handler_readTag");
 
-			if (stTagInfo == null || stTagList == null || stMutex == null)
+			if (stTagInfo == null || stRQue == null || stMutex == null)
 			{
 				Log.WriteLog(LogType.Error, "the params is null");
 				return false;
@@ -885,8 +903,7 @@ namespace ssms.Pages.Items
 			stMutex.WaitOne();
 
 			//遍历当前队列中所有的节点，修改它们的操作步骤
-
-			if (!tag_queue_discreateStep(stTagList))
+			if (!tag_queue_discreateStep(stRQue))
 			{
 				Log.WriteLog(LogType.Error, "error to call tag_queue_discreateStep");
 				return false;
@@ -894,26 +911,25 @@ namespace ssms.Pages.Items
 			
 			#if false
             //debug
-            foreach (TagInfo stTmpInfo in stTagList)
-            {
-                Log.WriteLog(LogType.Trace, "after discrease， the tag[" + stTmpInfo.sTid + "] step now is [" + stTmpInfo.iTagStep + "].");
-            }
+			tag_queue_showInfo(stRQue);
 			#endif
 
 			/*====================插入读队列====================*/
 			/*插入fifo队列*/
-			stTagList.Enqueue(stTagInfo);
+			stRQue.Enqueue(stTagInfo);
 			Log.WriteLog(LogType.Trace, "success to add tag["+stTagInfo.sTid+"] into queue");
 			//释放临界资源
             stMutex.ReleaseMutex();
 
-			
-			
             return true;
             
         }
 
-
+		//判断fifo队列中的节点是否可用
+		bool tag_isTagInfo_available()
+        {
+            return true;
+		}
 		
 		/*参数：
 		*EventArgs e, 
@@ -924,13 +940,13 @@ namespace ssms.Pages.Items
 		*Queue<TagInfo> stWList, 内存写队列;
 		*ref Mutex stWMutex,内存写锁
 		*描述:对触发写操作的读写器进行写操作*/
-        bool ir_handler_writeTag(EventArgs e, ImpinjReader stReader, string sTagId, Queue<TagInfo> stRList, 
-        	ref Mutex stRMutex, Queue<TagInfo> stWList, ref Mutex stWMutex, ref ushort usEpcOpId, ref ushort usPcBitOpId,
+        bool ir_handler_writeTag(EventArgs e, ImpinjReader stReader, string sTagId, Queue<TagInfo> stRQue, 
+        	ref Mutex stRMutex, Queue<TagInfo> stWQue, ref Mutex stWMutex, ref ushort usEpcOpId, ref ushort usPcBitOpId,
         	Dictionary<int, TagInfo> stDic)
         {
         	Log.WriteLog(LogType.Trace, "come in ir_handler_writeTag");
 
-			if (stRList == null|| stWList == null)
+			if (stRQue == null|| stWQue == null)
 			{
 				Log.WriteLog(LogType.Error, "the params is null");
 				return false;
@@ -939,7 +955,8 @@ namespace ssms.Pages.Items
 			//锁临界资源
 			stRMutex.WaitOne();
 
-			if (stRList.Count == 0)
+			#if false
+			if (stRQue.Count == 0)
 			{
 				Log.WriteLog(LogType.Error, "error:1、there is not tag in input list, but the write process is trigger by tag["+sTagId+"], this is impossible ");
 				//释放临界资源
@@ -948,7 +965,7 @@ namespace ssms.Pages.Items
 			}
 			
 			/*tag出队列*/
-			TagInfo stTagInfo = stRList.Dequeue();
+			TagInfo stTagInfo = stRQue.Dequeue();
 			if (stTagInfo == null)
         	{
 				Log.WriteLog(LogType.Error, "error:2、there is not tag in input list, but the write process is triggered by tag["+sTagId+"], this is impossible.");
@@ -957,10 +974,20 @@ namespace ssms.Pages.Items
 				return false;
 			}
 
+			#else
+			TagInfo stTagInfo = tag_queue_pop(stRQue);
+			if (stTagInfo == null)
+        	{
+				Log.WriteLog(LogType.Error, "error:、there is not tag in input queue, but the write process is triggered by tag["+sTagId+"], this is impossible.");
+				//释放临界资源
+            	stRMutex.ReleaseMutex();
+				return false;
+			}
+			#endif
 			//释放临界资源
             stRMutex.ReleaseMutex();
 
-			Log.WriteLog(LogType.Trace, "success get a tag info from queue with tid["+sTagId+"] trigger.");
+			Log.WriteLog(LogType.Trace, "success get a tag info["+stTagInfo.sTid+"] from queue with tid["+sTagId+"] trigger.");
 			
 			/*====================节点合法性判断====================*/
             //必须保证进场顺序和写顺序一致
@@ -1015,7 +1042,7 @@ namespace ssms.Pages.Items
 			stWMutex.WaitOne();
 
 			//遍历写队列中所有的节点，修改它们的操作步骤
-			foreach (TagInfo stTmpInfo in stWList)
+			foreach (TagInfo stTmpInfo in stWQue)
 			{
                 Log.WriteLog(LogType.Trace, "the tag[" + stTmpInfo.sTid + "] step now is [" + stTmpInfo.iTagStep + "], it will be discrease by 1.");
                 stTmpInfo.iTagStep--;
@@ -1024,7 +1051,7 @@ namespace ssms.Pages.Items
 			//更新节点的操作步骤
 			stTagInfo.iTagStep--;//操作步骤从TAG_STEP_DONE_WIRTE变成4
 			//添加新节点
-			stWList.Enqueue(stTagInfo);
+			stWQue.Enqueue(stTagInfo);
 			
 			//释放临界资源
             stWMutex.ReleaseMutex();
