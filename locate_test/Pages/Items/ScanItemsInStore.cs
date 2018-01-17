@@ -1075,25 +1075,7 @@ namespace ssms.Pages.Items
 
 			stWMutex.WaitOne();
 
-			#if false
-			if (stWQue.Count == 0)
-			{
-				Log.WriteLog(LogType.Error, "error:there is not tag in the write list, but the check process is trigger by tag["+sTagId+"], this is impossible ");
-				//释放临界资源
-            	stWMutex.ReleaseMutex();
-				return false;
-			}
-
-			/*tag出队列*/
-			TagInfo stTagInfo = stWQue.Dequeue();
-			if (stTagInfo == null)
-        	{
-				Log.WriteLog(LogType.Error, "error:there is not tag in write list, but the check  process is triggered by tag["+sTagId+"], this is impossible.");
-				//释放临界资源
-            	stWMutex.ReleaseMutex();
-				return false;
-			}
-			#else
+	
 			TagInfo stTagInfo = tag_queue_pop(stWQue);
 			if (stTagInfo == null)
         	{
@@ -1102,35 +1084,18 @@ namespace ssms.Pages.Items
             	stWMutex.ReleaseMutex();
 				return false;
 			}
-			#endif
+
 			stWMutex.ReleaseMutex();
 
 			Log.WriteLog(LogType.Trace, "success get a tag info["+stTagInfo.sTid+"] from write queue by tid["+sTagId+"] trigger.");
 			
 			/*====================节点合法性判断====================*/
-			#if false
-            //必须保证进场顺序和写顺序一致
-            if (!string.Equals(sTagId, stTagInfo.sTid))
-            {
-				//tag在流水线上顺序和内存中的顺序以不一致，不再处理该 tag
-				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue is not equals with the trigger tag["+sTagId+"], this is impossible, set the tag into error.");
 
-				goto proc_err_tag;
-			}
-
-			//必须保证tag的step是写step
-			if (stTagInfo.iTagStep != Macro.TAG_STEP_DONE_CHECK)
-			{
-				//tag在内存的步骤出错，不再处理该 tag
-				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue step is ["+stTagInfo.iTagStep+"],not equere step["+ Macro.TAG_STEP_DONE_WIRTE+"], set the tag into error.");
-				goto proc_err_tag;
-			}
-			#else
 			if (!tag_isTagInfoAvailable(stTagInfo, sTagId, Macro.TAG_STEP_DONE_CHECK))
 			{
 				goto proc_err_tag;
 			}
-			#endif
+	
 			
 			/*====================进行检查操作====================*/
 			//如果tag的状态不为ok，则不需要进行检查操作
