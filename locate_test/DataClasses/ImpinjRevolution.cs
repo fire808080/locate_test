@@ -928,8 +928,6 @@ namespace ssms.DataClasses
 		//入场tag id进行去重判断;判断tag id是否有重复;只有当tag id是重复的，才会返回false；其他情况都返回true，继续处理；
         bool ir_deduplicateTagId(string sTagId, int iReaderType, ref int iRet)
         {
-        	//string sTagId = stTag.Tid.ToString();
-			
 			Log.WriteLog(LogType.Trace, "come in ir_deduplicateTagId");
 
 			stDeduplicateDicMutex.WaitOne();
@@ -1050,7 +1048,6 @@ namespace ssms.DataClasses
         	//入场对tag id进行去重处理
 			if (!ir_deduplicateTagId(sTagId, Macro.READER_TYPE_READER, ref iRet))
 			{
-				stStatInfo.iErrorInRead++;
 				return false;
 			}
 
@@ -1064,7 +1061,6 @@ namespace ssms.DataClasses
 			TagInfo stTagInfo = ir_createTagInfo(stTag, sTagId);
 			if (null == stTagInfo)
 			{
-				stStatInfo.iErrorInRead++;
 				return false;
 			}
 
@@ -1072,7 +1068,7 @@ namespace ssms.DataClasses
 			if (stTagInfo.sTid == "")
 			{
 				stTagInfo.iTagState = Macro.TAG_STATE_ERROR;
-				stStatInfo.iErrorTagInRead ++;
+				stStatInfo.iErrorTagInWrite ++;
 				Log.WriteLog(LogType.Warning, "the tag id is null");
 			}
 						
@@ -1080,7 +1076,6 @@ namespace ssms.DataClasses
 			//加入入场队列
 			if (!dReadHandler(stTagInfo, null, stRList, ref stRMutex))
 			{
-				stStatInfo.iErrorInRead++;
 				Log.WriteLog(LogType.Error, "error to insert tag["+stTagInfo.sTid+"] into input list");
 				return false;
 			}
@@ -1104,7 +1099,6 @@ namespace ssms.DataClasses
 			//入场对tag id进行去重处理
 			if (!ir_deduplicateTagId(sTagId, Macro.READER_TYPE_WRITER, ref iRet))
 			{
-				stStatInfo.iErrorInWrite ++;
 				return false;
 			}
 
@@ -1118,7 +1112,6 @@ namespace ssms.DataClasses
 			if (!dWriteHandler(null, sender, sTagId, stRList, ref stRMutex, stWList, ref stWMutex, ref usTmpEpcOpId, ref usTmpPcBitOpId, stTagDic))
 			{
 				Log.WriteLog(LogType.Error, "error to write tag[" + sTagId + "] epc info.");
-				stStatInfo.iErrorInWrite ++;
 
 				return false;
 			}
@@ -1130,12 +1123,12 @@ namespace ssms.DataClasses
 		}
 
 		//处理写操作的确认信息
-		bool ir_write_processConfirm(int iOpId, ref bool bContinue)
+		bool ir_write_processConfirm(int iOpId, ref bool bOk)
 		{	
 			int iRet = 0;
 
 			Log.WriteLog(LogType.Trace, "come in ir_write_processConfirm");
-			bContinue = false;
+			bOk = false;
 
 			#if false
 			//入场对tag id进行去重处理
@@ -1157,7 +1150,7 @@ namespace ssms.DataClasses
 				return false;
 			}
 			
-			bContinue = true;
+			bOk = true;
 			return true;					
 		}
 
@@ -1178,7 +1171,7 @@ namespace ssms.DataClasses
 			//入场对tag id进行去重处理
 			if (!ir_deduplicateTagId(sTagId, Macro.READER_TYPE_CHECKR, ref iRet))
 			{
-				stStatInfo.iErrorInWrite ++;
+				
 				return false;
 			}
 
@@ -1301,6 +1294,8 @@ namespace ssms.DataClasses
 				if (!ir_read_processTag(stResult.Tag, sTid))
 				{
 					Log.WriteLog(LogType.Error, "Error to call ir_read_processTag");
+
+					stStatInfo.iErrorInRead++;
 					return false;
 				}
 
@@ -1335,6 +1330,8 @@ namespace ssms.DataClasses
 				if (!ir_write_processTag(stResult.Tag, sTid, sender))
 				{
 					Log.WriteLog(LogType.Error, "Error to call ir_write_processTag");
+
+					stStatInfo.iErrorInWrite ++;
 					return false;
 				}
 
@@ -1358,7 +1355,7 @@ namespace ssms.DataClasses
 			int iRet = 0;
 			string sTid, sEpc;
 			sTid = sEpc = "";
-			bool bContinue = false;
+			bool bConfireOk = false;
 			
 			Log.WriteLog(LogType.Trace, "come in ir_write_procWResult");
 
@@ -1372,7 +1369,7 @@ namespace ssms.DataClasses
 		        if (stResult.OpId == usEpcOpId)
 	            {
 	            	/*更新tag info写状态*/
-					if (!ir_write_processConfirm(stResult.OpId, ref bContinue))
+					if (!ir_write_processConfirm(stResult.OpId, ref bConfireOk))
 					{
 						Log.WriteLog(LogType.Error, "error to call ir_write_processConfirm in ecp operation");
 
@@ -1381,7 +1378,7 @@ namespace ssms.DataClasses
 						return false;
 					}
 
-					if (bContinue == true)
+					if (bConfireOk == true)
 					{
 						Log.WriteLog(LogType.Trace, "success to   write to EPC with op id["+usEpcOpId+"] complete, the result is "+ stResult.Result+".");
 					}
@@ -1389,7 +1386,7 @@ namespace ssms.DataClasses
 	            else if (stResult.OpId == usPcBitOpId)
 	            {
 	            	/*更新tag info写状态*/
-					if (!ir_write_processConfirm(stResult.OpId, ref bContinue))
+					if (!ir_write_processConfirm(stResult.OpId, ref bConfireOk))
 					{
 						Log.WriteLog(LogType.Error, "error to call ir_write_processConfirm in pc bit operation");
 
@@ -1397,7 +1394,7 @@ namespace ssms.DataClasses
 						return false;
 					}
 
-					if (bContinue == true)
+					if (bConfireOk == true)
 					{
 						Log.WriteLog(LogType.Trace, "success to write to PC bits with op id["+usPcBitOpId+"] complete, the result is "+stResult.Result+".");
 					}
@@ -1406,7 +1403,7 @@ namespace ssms.DataClasses
 				{
 					Log.WriteLog(LogType.Error, "Unknow write operation with op id["+stResult.OpId+"]");
 
-					stStatInfo.iErrorInWriteConfrim ++;
+					//stStatInfo.iErrorInWriteConfrim ++;
 					return false;
 				}
 				
@@ -1443,7 +1440,7 @@ namespace ssms.DataClasses
 				if (!ir_check_processTag(stResult.Tag, sTid, sender))
 				{
 					Log.WriteLog(LogType.Error, "Error to call ir_check_processTag");
-
+					stStatInfo.iErrorInCheck ++;
 					return false;
 				}
 				
