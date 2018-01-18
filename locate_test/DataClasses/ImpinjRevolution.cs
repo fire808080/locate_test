@@ -1471,6 +1471,12 @@ namespace ssms.DataClasses
                 {
                     TagReadOpResult stRRet = stRet as TagReadOpResult;
 
+					if (stRRet.Result != ReadResultStatus.Success)
+					{
+						Log.WriteLog(LogType.Error, "read operation failed : {0} in read process.", stRRet.Result);
+						continue;
+					}
+								
 					if (!ir_read_procRResult(stRRet))
 					{
 						Log.WriteLog(LogType.Error, "Error to call ir_read_procRResult");
@@ -1510,6 +1516,12 @@ namespace ssms.DataClasses
                 {
                     TagReadOpResult stRResult = stRet as TagReadOpResult;
 
+					if (stRResult.Result != ReadResultStatus.Success)
+					{
+						Log.WriteLog(LogType.Error, "read operation failed : {0} in write process.", stRResult.Result);
+						continue;
+					}
+										
 					if (!ir_write_procRResult(stRResult, sender))
 					{
 						Log.WriteLog(LogType.Error, "error to call ir_write_procRResult");
@@ -1520,6 +1532,12 @@ namespace ssms.DataClasses
 				{
                     TagWriteOpResult stWResult = stRet as TagWriteOpResult;
 
+					if (stWResult.Result != WriteResultStatus.Success)
+					{
+						Log.WriteLog(LogType.Error, "write operation failed : {0} in write process.", stWResult.Result);
+						continue;
+					}
+										
 					if (!ir_write_procWResult(stWResult))
 					{
 						Log.WriteLog(LogType.Error, "error to call ir_writeTag_procWResult");
@@ -1552,6 +1570,12 @@ namespace ssms.DataClasses
                 {
                     TagReadOpResult stCRet = stRet as TagReadOpResult;
 
+					if (stCRet.Result != ReadResultStatus.Success)
+					{
+						Log.WriteLog(LogType.Error, "read operation failed : {0} in check process.", stCRet.Result);
+						continue;
+					}
+										
 					if (!ir_check_procRResult(stCRet, sender))
 					{
 						Log.WriteLog(LogType.Error, "error to call ir_check_procRResult");
