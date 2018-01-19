@@ -152,7 +152,7 @@
             this.bStop.TabIndex = 326;
             this.bStop.TextAlign = System.Drawing.ContentAlignment.BottomCenter;
             this.bStop.UseVisualStyleBackColor = true;
-            this.bStop.Click += new System.EventHandler(this.button1_Click);
+            this.bStop.Click += new System.EventHandler(this.scanItem_stop_click);
             // 
             // bBack
             // 

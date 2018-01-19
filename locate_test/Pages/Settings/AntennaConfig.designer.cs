@@ -112,7 +112,7 @@
             this.nudTX.Font = new System.Drawing.Font("Arial Narrow", 11.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.nudTX.Location = new System.Drawing.Point(147, 11);
             this.nudTX.Maximum = new decimal(new int[] {
-            30,
+            50,
             0,
             0,
             0});

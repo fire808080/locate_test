@@ -20,7 +20,7 @@ namespace ssms.DataClasses
 
 	//写业务处理函数
 	public delegate bool delegate_write_handler(EventArgs e, ImpinjReader stReader, string sTagId,  Queue<TagInfo> stRList, ref Mutex stRMutex,  
-		 Queue<TagInfo> stWList, ref Mutex stWMutex, ref ushort usEpcOpId, ref ushort usPcBitOpId,  Dictionary<int, TagInfo> stDic);
+		 Queue<TagInfo> stWList, ref Mutex stWMutex, ref ushort usEpcOpId, ref ushort usPcBitOpId,  Dictionary<int, TagInfo> stDic, Mutex stDicMutex);
 
 	//写业务处理函数
 	public delegate bool delegate_check_handler(ImpinjReader stReader, string sTagId, string sEpc, Queue<TagInfo> stWList,  Mutex stWMutex);
@@ -37,7 +37,11 @@ namespace ssms.DataClasses
         public int AntennaCount { get { if (Antennas != null) { return Antennas.Count; } else { return 0; } } }
 		public int iReaderType {get; set;}
 		public bool isConnected = false;
-
+		
+		public BusinessQue stBQue { get; set; }//业务队列
+		
+		
+		
 		bool bTest = true;
 
 
@@ -55,7 +59,7 @@ namespace ssms.DataClasses
         public ScanMode ReaderScanMode = ScanMode.FullScan;
         
 		
-
+		#if false
 		//操作队列
 		public Queue<TagInfo> stRList;   //入场队列
 		public Mutex stRMutex;
@@ -63,7 +67,7 @@ namespace ssms.DataClasses
 		public Queue<TagInfo> stWList;   //写队列
 		public Mutex stWMutex;
 
-		public List<string> stDeduplicateList;	//去重队列
+		
 		
 
 		
@@ -71,6 +75,7 @@ namespace ssms.DataClasses
 
 		public Dictionary<string, int> stDeduplicateDic = new Dictionary<string, int>();
 		public Mutex stDeduplicateDicMutex;
+		#endif
 
 		public ushort usEpcOpId {get; set;}
 		public ushort usPcBitOpId {get; set;}
@@ -84,18 +89,15 @@ namespace ssms.DataClasses
             reader = new ImpinjReader();
 
 			stStatInfo = new StatInfo();
-			
+
+			#if false
             stRList = new Queue<TagInfo>();
 			stRMutex = new Mutex();
 
 			stWList = new Queue<TagInfo>();
-			stWMutex = new Mutex();
-
-			
-			stDeduplicateList = new List<string>();
-
-			
+			stWMutex = new Mutex();	
 			stDeduplicateDicMutex = new Mutex();
+			#endif
 
 			dReadHandler = null;
 			dWriteHandler = null;
@@ -785,10 +787,10 @@ namespace ssms.DataClasses
 			
 			try
 			{
-				if (!stDeduplicateDic.ContainsKey(sTagId))
+				if (!stBQue.stDeduplicateDic.ContainsKey(sTagId))
 				{
 					//第一次上报，建立映射节点
-					stDeduplicateDic.Add(sTagId, Macro.TAG_DEDUPLICATE_READ);
+					stBQue.stDeduplicateDic.Add(sTagId, Macro.TAG_DEDUPLICATE_READ);
 
 					stStatInfo.iReadCnt ++;
 					iRet = Macro.TAG_NOT_DUPLICATE;
@@ -822,10 +824,10 @@ namespace ssms.DataClasses
 			try
 			{
 				//存在并且是第一次上报的
-				if (stDeduplicateDic.ContainsKey(sTagId) && stDeduplicateDic[sTagId] == Macro.TAG_DEDUPLICATE_READ)
+				if (stBQue.stDeduplicateDic.ContainsKey(sTagId) && stBQue.stDeduplicateDic[sTagId] == Macro.TAG_DEDUPLICATE_READ)
 				{
 					//第一次上报，修改状态值
-					stDeduplicateDic[sTagId] = Macro.TAG_DEDUPLICATE_WRITE;
+					stBQue.stDeduplicateDic[sTagId] = Macro.TAG_DEDUPLICATE_WRITE;
 
 					stStatInfo.iWriteCnt ++;
 					iRet = Macro.TAG_NOT_DUPLICATE;
@@ -837,7 +839,7 @@ namespace ssms.DataClasses
 					stStatInfo.iDuplicateWriteCnt ++;
 					iRet = Macro.TAG_IN_DUPLICATE;
 					
-					Log.WriteLog(LogType.Trace, "the tag["+sTagId+"] has been read before in write process, the step in memery is["+stDeduplicateDic[sTagId]+"] not equal["+Macro.TAG_DEDUPLICATE_READ+"].");					
+					Log.WriteLog(LogType.Trace, "the tag["+sTagId+"] has been read before in write process, the step in memery is["+stBQue.stDeduplicateDic[sTagId]+"] not equal["+Macro.TAG_DEDUPLICATE_READ+"].");					
 				}
 			}
 			catch (System.Exception e)
@@ -859,10 +861,10 @@ namespace ssms.DataClasses
 			try
 			{
 				//存在并且是第一次上报的
-				if (stDeduplicateDic.ContainsKey(sTagId) && stDeduplicateDic[sTagId] == Macro.TAG_DEDUPLICATE_WRITE)
+				if (stBQue.stDeduplicateDic.ContainsKey(sTagId) && stBQue.stDeduplicateDic[sTagId] == Macro.TAG_DEDUPLICATE_WRITE)
 				{
 					//第一次上报，修改状态值
-					stDeduplicateDic[sTagId] = Macro.TAG_DEDUPLICATE_WRITE_CONFIRM;
+					stBQue.stDeduplicateDic[sTagId] = Macro.TAG_DEDUPLICATE_WRITE_CONFIRM;
 
 					stStatInfo.iWriteConfirmCnt ++;
 					iRet = Macro.TAG_NOT_DUPLICATE;
@@ -874,7 +876,7 @@ namespace ssms.DataClasses
 					stStatInfo.iDuplicateWriteConfirmCnt ++;
 					iRet = Macro.TAG_IN_DUPLICATE;
 					
-					Log.WriteLog(LogType.Trace, "the tag["+sTagId+"] has been read before in write confirm process, the step in memery is["+stDeduplicateDic[sTagId]+"] not equal ["+Macro.TAG_DEDUPLICATE_WRITE+"].");					
+					Log.WriteLog(LogType.Trace, "the tag["+sTagId+"] has been read before in write confirm process, the step in memery is["+stBQue.stDeduplicateDic[sTagId]+"] not equal ["+Macro.TAG_DEDUPLICATE_WRITE+"].");					
 				}
 			}
 			catch (System.Exception e)
@@ -897,10 +899,10 @@ namespace ssms.DataClasses
 			try
 			{
 				//存在并且是第一次上报的
-				if (stDeduplicateDic.ContainsKey(sTagId) && stDeduplicateDic[sTagId] == Macro.TAG_DEDUPLICATE_WRITE)
+				if (stBQue.stDeduplicateDic.ContainsKey(sTagId) && stBQue.stDeduplicateDic[sTagId] == Macro.TAG_DEDUPLICATE_WRITE)
 				{
 					//第一次上报，修改状态值
-					stDeduplicateDic[sTagId] = Macro.TAG_DEDUPLICATE_CHECK;
+					stBQue.stDeduplicateDic[sTagId] = Macro.TAG_DEDUPLICATE_CHECK;
 
 					stStatInfo.iCheckCnt ++;
 					iRet = Macro.TAG_NOT_DUPLICATE;
@@ -930,7 +932,7 @@ namespace ssms.DataClasses
         {
 			Log.WriteLog(LogType.Trace, "come in ir_deduplicateTagId");
 
-			stDeduplicateDicMutex.WaitOne();
+			stBQue.stDeduplicateDicMutex.WaitOne();
 
 			switch (iReaderType)
 			{
@@ -940,7 +942,7 @@ namespace ssms.DataClasses
 					{
 						Log.WriteLog(LogType.Error, "error to call ir_deduplicateTagId_read");
 
-						stDeduplicateDicMutex.ReleaseMutex();
+						stBQue.stDeduplicateDicMutex.ReleaseMutex();
 						return false;
 					}
 				}
@@ -952,7 +954,7 @@ namespace ssms.DataClasses
 					{
 						Log.WriteLog(LogType.Error, "error to call ir_deduplicateTagId_write");
 
-						stDeduplicateDicMutex.ReleaseMutex();
+						stBQue.stDeduplicateDicMutex.ReleaseMutex();
 						return false;
 					}
 				}
@@ -964,7 +966,7 @@ namespace ssms.DataClasses
 					{
 						Log.WriteLog(LogType.Error, "error to call ir_deduplicateTagId_writeConfirm");
 
-						stDeduplicateDicMutex.ReleaseMutex();
+						stBQue.stDeduplicateDicMutex.ReleaseMutex();
 						return false;
 					}
 				}
@@ -978,7 +980,7 @@ namespace ssms.DataClasses
 					{
 						Log.WriteLog(LogType.Error, "error to call ir_deduplicateTagId_check");
 
-						stDeduplicateDicMutex.ReleaseMutex();
+						stBQue.stDeduplicateDicMutex.ReleaseMutex();
 						return false;
 					}
 				}
@@ -988,7 +990,7 @@ namespace ssms.DataClasses
 				{
 					Log.WriteLog(LogType.Error, "the reader type is error.");
 
-					stDeduplicateDicMutex.ReleaseMutex();
+					stBQue.stDeduplicateDicMutex.ReleaseMutex();
 					return false;
 				}
 				break;
@@ -997,7 +999,7 @@ namespace ssms.DataClasses
 			
 
 
-			stDeduplicateDicMutex.ReleaseMutex();
+			stBQue.stDeduplicateDicMutex.ReleaseMutex();
 			return true;
 		}
 
@@ -1074,7 +1076,7 @@ namespace ssms.DataClasses
 						
 			
 			//加入入场队列
-			if (!dReadHandler(stTagInfo, null, stRList, ref stRMutex))
+			if (!dReadHandler(stTagInfo, null, stBQue.stRList, ref stBQue.stRMutex))
 			{
 				Log.WriteLog(LogType.Error, "error to insert tag["+stTagInfo.sTid+"] into input list");
 				return false;
@@ -1109,7 +1111,7 @@ namespace ssms.DataClasses
 
 
 			//进行写操作
-			if (!dWriteHandler(null, sender, sTagId, stRList, ref stRMutex, stWList, ref stWMutex, ref usTmpEpcOpId, ref usTmpPcBitOpId, stTagDic))
+			if (!dWriteHandler(null, sender, sTagId,  stBQue.stRList, ref  stBQue.stRMutex,  stBQue.stWList, ref  stBQue.stWMutex, ref usTmpEpcOpId, ref usTmpPcBitOpId, stBQue.stTagDic, stBQue.stTagDicMutex))
 			{
 				Log.WriteLog(LogType.Error, "error to write tag[" + sTagId + "] epc info.");
 
@@ -1145,7 +1147,7 @@ namespace ssms.DataClasses
 			#endif
 
 		    /*更新tag info写状态*/
-			if (!ir_dic_updateWriteState(stTagDic, iOpId))
+			if (!ir_dic_updateWriteState(stBQue.stTagDic, iOpId))
 			{				
 				return false;
 			}
@@ -1181,7 +1183,7 @@ namespace ssms.DataClasses
 			}
 				
 			//进行校验操作
-			if (!dCheckHandler(sender, sTagId, stTag.Epc.ToString(), stWList, stWMutex))
+			if (!dCheckHandler(sender, sTagId, stTag.Epc.ToString(), stBQue.stWList, stBQue.stWMutex))
 			{
                 Log.WriteLog(LogType.Error, "error to check tag[" +sTagId + "] epc info.");
 				return false;
@@ -1473,7 +1475,7 @@ namespace ssms.DataClasses
 
 					if (stRRet.Result != ReadResultStatus.Success)
 					{
-						Log.WriteLog(LogType.Error, "read operation failed : {0} in read process.", stRRet.Result);
+                        Log.WriteLog(LogType.Error, "read operation failed : {" + stRRet.Result + "} in read process.");
 						continue;
 					}
 								
@@ -1518,7 +1520,7 @@ namespace ssms.DataClasses
 
 					if (stRResult.Result != ReadResultStatus.Success)
 					{
-						Log.WriteLog(LogType.Error, "read operation failed : {0} in write process.", stRResult.Result);
+                        Log.WriteLog(LogType.Error, "read operation failed : {" + stRResult.Result + "} in write process.");
 						continue;
 					}
 										
@@ -1534,7 +1536,7 @@ namespace ssms.DataClasses
 
 					if (stWResult.Result != WriteResultStatus.Success)
 					{
-						Log.WriteLog(LogType.Error, "write operation failed : {0} in write process.", stWResult.Result);
+                        Log.WriteLog(LogType.Error, "write operation failed : {" + stWResult.Result + "} in write process.");
 						continue;
 					}
 										
@@ -1572,7 +1574,7 @@ namespace ssms.DataClasses
 
 					if (stCRet.Result != ReadResultStatus.Success)
 					{
-						Log.WriteLog(LogType.Error, "read operation failed : {0} in check process.", stCRet.Result);
+                        Log.WriteLog(LogType.Error, "read operation failed : {" + stCRet.Result + "} in check process.");
 						continue;
 					}
 										
@@ -1640,14 +1642,30 @@ namespace ssms.DataClasses
 				//设置tag的写状态
 	            if (bOk)
 	            {
-	                TagInfo stTagInfo = stTagDic[usEpcOpId];
+	            	
+					
+	                TagInfo stTagInfo = stBQue.stTagDic[usEpcOpId];
 	                stTagInfo.iTagWState = Macro.TAG_WRITE_FINISH;
 
 	                Log.WriteLog(LogType.Trace, "success to set tag[" + stTagInfo.sTid + "] write state into finish.");
 
 					//移除节点
-					stTagDic.Remove(usEpcOpId);
+					stBQue.stTagDicMutex.WaitOne();
+					stBQue.stTagDic.Remove(usEpcOpId);
+					stBQue.stTagDicMutex.ReleaseMutex();
 					Log.WriteLog(LogType.Trace, "success to remove tag info from dictionary with ecp op id["+usEpcOpId+"]");
+
+
+
+
+								
+
+
+
+						
+
+
+						
 
 	            }
 			}
@@ -1708,7 +1726,7 @@ namespace ssms.DataClasses
 							
 				
 				//加入入场队列
-				if (!dReadHandler(stTagInfo, null, stRList, ref stRMutex))
+				if (!dReadHandler(stTagInfo, null, stBQue.stRList, ref stBQue.stRMutex))
 				{
 					stStatInfo.iErrorInRead++;
 					Log.WriteLog(LogType.Error, "error to insert tag["+stTagInfo.sTid+"] into input list");
@@ -1757,7 +1775,7 @@ namespace ssms.DataClasses
 
 					
 				//进行写操作
-				if (!dWriteHandler(null, sender, tag.Tid.ToString(), stRList, ref stRMutex, stWList, ref stWMutex, ref usTmpEpcOpId, ref usTmpPcBitOpId, stTagDic))
+                if (!dWriteHandler(null, sender, tag.Tid.ToString(), stBQue.stRList, ref stBQue.stRMutex, stBQue.stWList, ref stBQue.stWMutex, ref usTmpEpcOpId, ref usTmpPcBitOpId, stBQue.stTagDic, stBQue.stTagDicMutex))
 				{
                     Log.WriteLog(LogType.Error, "error to write tag[" + tag.Tid.ToString() + "] epc info.");
 					stStatInfo.iErrorInWrite ++;
@@ -1806,7 +1824,7 @@ namespace ssms.DataClasses
 				}
 				
 				//进行写操作
-				if (!dCheckHandler(sender, tag.Tid.ToString(), tag.Epc.ToString(), stWList, stWMutex))
+				if (!dCheckHandler(sender, tag.Tid.ToString(), tag.Epc.ToString(), stBQue.stWList, stBQue.stWMutex))
 				{
                     Log.WriteLog(LogType.Error, "error to write tag[" + tag.Tid.ToString() + "] epc into.");
 				}

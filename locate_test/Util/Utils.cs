@@ -8,6 +8,16 @@ using System.Text.RegularExpressions;
 using ssms.DataClasses;
 using System.Windows.Forms;
 
+using System.ComponentModel;
+using System.Collections;
+using System.Threading;
+
+using ssms.Util;
+using ssms.Pages.Items;
+
+
+
+
 using ssms.Util;
 using ssms;
 
@@ -564,6 +574,46 @@ namespace ssms.Util
 			
 		}
 	}
+
+	//具体业务列表
+	public class BusinessQue
+	{
+		public Queue<TagInfo> stRList;   //读队列
+		public Mutex stRMutex;
+
+		public Queue<TagInfo> stWList;   //写队列
+		public Mutex stWMutex;
+
+		
+		//供写操作确认是否写成功使用
+		public Dictionary<int, TagInfo>stTagDic;
+		public Mutex stTagDicMutex;
+		
+		//供所有读写器去重使用
+		public Dictionary<string, int> stDeduplicateDic;
+		public Mutex stDeduplicateDicMutex;
+
+
+		//生成业务队列资源
+        public BusinessQue()
+        {			
+            stRList = new Queue<TagInfo>();
+			stRMutex = new Mutex();
+
+			stWList = new Queue<TagInfo>();
+			stWMutex = new Mutex();
+
+			
+			
+			stTagDic = new Dictionary<int, TagInfo>();
+			stTagDicMutex = new Mutex(); 
+
+			stDeduplicateDic = new Dictionary<string, int>();
+			stDeduplicateDicMutex = new Mutex();
+        }
+		
+	}
+
 	
 	class Rfid
 	{
@@ -833,7 +883,7 @@ namespace ssms.Util
         *delegate_check_handler dCHandler, 校验函数;
         *bool bTest， 测试标志位;
         *描述：为每个读写器申请一个读写器节点，并连接到物理读写器上，将配置应用到读写器中。*/
-        private static bool reader_connect_handler(SettingsMain smii, List<ImpinjRevolution> impinjrev, delegate_read_handler dRHandler, 
+        private static bool reader_connect_handler(SettingsMain smii, List<ImpinjRevolution> impinjrev, BusinessQue stBQue, delegate_read_handler dRHandler, 
         	delegate_write_handler dWHandler, delegate_check_handler dCHandler, bool bTest)
 		{
 			bool bAllConnected = true;
@@ -853,6 +903,7 @@ namespace ssms.Util
 					ir.HostName = smii.Readers[x].IPaddress;
 					ir.Antennas = smii.Readers[x].antennas;
 					ir.iReaderType = smii.Readers[x].iReaderType;
+					ir.stBQue = stBQue;
 					//注册委托函数
 					reader_regist_delegate(ir, ir.iReaderType, dRHandler, dWHandler, dCHandler);
 
@@ -921,7 +972,7 @@ namespace ssms.Util
 		*bool bTest, 标识是否是测试操作;
 		*描述:供外部使用的连接读写器的接口API。应用setting的配置，连接到指定的读写器上。
 		*/
-		public static bool reader_connectReader(int iStoreId, int iSettingId, List<ImpinjRevolution> impinjrev, 
+		public static bool reader_connectReader(int iStoreId, int iSettingId, List<ImpinjRevolution> impinjrev, BusinessQue stBQue, 
 			delegate_read_handler dRHandler, delegate_write_handler dWHandler, delegate_check_handler dCHandler, bool bTest)
 		{  
 			DataSet stDs;
@@ -969,7 +1020,7 @@ namespace ssms.Util
 				}
 
 				/*================根据配置连接到指定的读写器上================*/
-				if (!reader_connect_handler(smi, impinjrev, dRHandler, dWHandler, dCHandler, bTest))
+				if (!reader_connect_handler(smi, impinjrev, stBQue, dRHandler, dWHandler, dCHandler, bTest))
 				{
 					Log.WriteLog(LogType.Error, "error go call reader_connect");
 					return false;

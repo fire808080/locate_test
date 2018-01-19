@@ -352,7 +352,7 @@ namespace ssms.Pages.Settings
 			
 			Log.WriteLog(LogType.Trace, "goto test connect machine["+iStoreId+"] settings["+iSettingId+"] readers.");
 
-			if (!Rfid.reader_connectReader(iStoreId, iSettingId, impinjrev, null, null, null,  true))
+			if (!Rfid.reader_connectReader(iStoreId, iSettingId, impinjrev,null, null, null, null,  true))
 			{
 				Log.WriteLog(LogType.Error, "error to call reader_connectReader");
 			}

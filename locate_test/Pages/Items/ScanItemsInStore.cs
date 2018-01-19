@@ -39,7 +39,7 @@ namespace ssms.Pages.Items
 
 		
 		Random gstRand = new Random();
-		
+		BusinessQue gstBQue = new BusinessQue();
 
 		
 
@@ -624,7 +624,7 @@ namespace ssms.Pages.Items
             	
 				scanItem_chgOper(Macro.SCANITEM_OPR_CONNECTING);
 				//if (!Rfid.reader_connectReader(gstSettings.StoreID, gstSettings.SettingsID, impinjrev, ir_handler_readTag, null, null, false))
-				if (!Rfid.reader_connectReader(gstSettings.StoreID, gstSettings.SettingsID, impinjrev, null, null, null, false))   
+				if (!Rfid.reader_connectReader(gstSettings.StoreID, gstSettings.SettingsID, impinjrev, gstBQue, null, null, null, false))   
 				{
 					Log.WriteLog(LogType.Error, "error to call reader_connectReader");
 
@@ -665,8 +665,10 @@ namespace ssms.Pages.Items
 
         }
 
-        private void button1_Click(object sender, EventArgs e)
+        private void scanItem_stop_click(object sender, EventArgs e)
         {
+        	Log.WriteLog(LogType.Trace, "come in scanItem_stop_click");
+			
             bExportPdf.Enabled = true;
             cbStore.Enabled = true;
             DialogResult res = MessageBox.Show("You are about to stop scanning, Click OK to Stop Scanning, or Cancel!", "", MessageBoxButtons.OKCancel);
@@ -684,7 +686,6 @@ namespace ssms.Pages.Items
                 {
                     impinjrev[i].ir_stopRead();
                     impinjrev[i].ir_disconnect();
-
                 }
                 lStop.Text = "Stopped and Disconnected...";
                 lConnect.Visible = false;
@@ -693,6 +694,11 @@ namespace ssms.Pages.Items
                 busy = false;
                 bBack.Enabled = true;
 
+				//清空业务队列的资源
+				gstBQue.stRList.Clear();
+                gstBQue.stWList.Clear();
+                gstBQue.stTagDic.Clear();
+                gstBQue.stDeduplicateDic.Clear();
 
             }
         }
@@ -941,6 +947,7 @@ namespace ssms.Pages.Items
 		{
         	Log.WriteLog(LogType.Trace, "come in ir_handler_readTag");
 
+
 			if (stTagInfo == null || stRQue == null || stMutex == null)
 			{
 				Log.WriteLog(LogType.Error, "the params is null");
@@ -987,7 +994,7 @@ namespace ssms.Pages.Items
 		*描述:对触发写操作的读写器进行写操作*/
         bool ir_handler_writeTag(EventArgs e, ImpinjReader stReader, string sTagId, Queue<TagInfo> stRQue, 
         	ref Mutex stRMutex, Queue<TagInfo> stWQue, ref Mutex stWMutex, ref ushort usEpcOpId, ref ushort usPcBitOpId,
-        	Dictionary<int, TagInfo> stDic)
+        	Dictionary<int, TagInfo> stDic, Mutex stDicMutex)
         {
         	Log.WriteLog(LogType.Trace, "come in ir_handler_writeTag");
 
@@ -1043,7 +1050,10 @@ namespace ssms.Pages.Items
 				}
 
 				//tag加入dic字典
+				stDicMutex.WaitOne();
 				stDic.Add(usEpcOpId, stTagInfo);
+				stDicMutex.ReleaseMutex();
+				
 				Log.WriteLog(LogType.Trace, "success to put tag[" + stTagInfo.sTid + "] into dictionary with ecp op id["+usEpcOpId+"].");
 			}
 
