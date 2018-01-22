@@ -34,8 +34,9 @@ namespace ssms
 		//读写器类型宏定义
 		public const int READER_TYPE_READER = 0;
 		public const int READER_TYPE_WRITER = 1;
-		public const int READER_TYPE_WRITER_CONFIRM = 2;
-		public const int READER_TYPE_CHECKR = 3;
+		public const int READER_TYPE_CHECKR = 2;
+		public const int READER_TYPE_WRITER_CONFIRM = 3;
+		
 
 		//tag状态
 		public const int TAG_STATE_ERROR = 0;   //处于该状态下的tag，从产生错误的地方起，不用进行后续的处理

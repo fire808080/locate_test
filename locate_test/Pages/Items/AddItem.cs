@@ -481,11 +481,14 @@ namespace ssms.Pages.Items
 				//根据settings上的读写器配置，进行读写器连接操作
             	for (int x = 0; x < sm.Readers.Count; x++)
 	            {
+	            	bool bOk = true;
+					
 	            	//针对每一个reader配置生成一个reader解决方案节点
 	                ImpinjRevolution ir = new ImpinjRevolution();
 	                ir.ReaderScanMode = ScanMode.ScanItem;
 	                ir.HostName = sm.Readers[x].IPaddress;
 	                ir.Antennas = sm.Readers[x].antennas;
+					ir.isConnected = false;
 	                //ir.TagRead += ir_TagRead;  //注册委托函数
 
 					Log.WriteLog(LogType.Trace, "goto connect to reader with ip["+ir.HostName+"]");
@@ -493,10 +496,11 @@ namespace ssms.Pages.Items
 	                if(!ir.ir_connectReader())
 	                {
 						Log.WriteLog(LogType.Trace, "error to connect to reader["+ir.HostName+"]");
+						bOk = false;
 					}
 
 	                impinjrev.Add(ir);
-	                if (!ir.isConnected)
+	                if (!bOk)
 	                {
 	                    if (checks == true)
 	                    {

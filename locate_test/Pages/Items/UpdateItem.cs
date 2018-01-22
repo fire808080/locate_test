@@ -563,23 +563,27 @@ namespace ssms.Pages.Items
 				//根据settings上的读写器配置，进行读写器连接操作
             	for (int x = 0; x < sm.Readers.Count; x++)
 	            {
+	            	bool bOk = true;
+					
 	            	//针对每一个reader配置生成一个reader解决方案节点
 	                ImpinjRevolution ir = new ImpinjRevolution();
 	                ir.ReaderScanMode = ScanMode.ScanItem;
 	                ir.HostName = sm.Readers[x].IPaddress;
 	                ir.Antennas = sm.Readers[x].antennas;
-
+					ir.isConnected = false;
+					
 	                //ir.TagRead += ir_TagRead;
 
 					Log.WriteLog(LogType.Trace, "goto connect to reader with ip["+ir.HostName+"]");
 					//连接到指定的读写器上
 	                if (!ir.ir_connectReader())
 	                {
+	                	bOk = false;
 						Log.WriteLog(LogType.Error, "error to connect to reader["+ir.HostName+"]");
 					}
 
 	                impinjrev.Add(ir);
-	                if (!ir.isConnected)
+	                if (!bOk)
 	                {
 	                    if (checks == true)
 	                    {

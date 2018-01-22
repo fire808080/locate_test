@@ -902,6 +902,7 @@ namespace ssms.Pages.Items
 				
 			}
 
+			#if false //暂时屏蔽不判断
 			//必须保证tag的step是写step
 			if (stTagInfo.iTagStep != iStep)
 			{
@@ -911,7 +912,7 @@ namespace ssms.Pages.Items
 				bOk = false;
 				Log.WriteLog(LogType.Error, "error:the tag["+stTagInfo.sTid+"] in queue step is ["+stTagInfo.iTagStep+"],not equere step["+ iStep+"], set the state into error.");
 			}
-			
+			#endif
 			
 			if (bOk == true)
 			{

@@ -292,6 +292,7 @@ namespace ssms.DataClasses
 			}
             catch (Exception e)
             {
+            	Log.WriteLog(LogType.Error, "the gip num index is "+settings.AutoStart.GpiPortNumber+"");
 				throw e;
             }
 
@@ -360,6 +361,7 @@ namespace ssms.DataClasses
 			}
             catch (Exception e)
             {
+            	Log.WriteLog(LogType.Error, "the gip num index is "+settings.AutoStart.GpiPortNumber+"");
 				throw e;
             }
 
@@ -423,6 +425,7 @@ namespace ssms.DataClasses
 			}
             catch (Exception e)
             {
+            	Log.WriteLog(LogType.Error, "the gip num index is "+settings.AutoStart.GpiPortNumber+"");
 				throw e;
             }
 
@@ -592,6 +595,7 @@ namespace ssms.DataClasses
 				//连到指定的读写器上
                 reader.Connect(HostName);
 				bConnectToReader = true;
+				
 
 				Log.WriteLog(LogType.Trace, "success connect to reader["+HostName+"]");
 				
@@ -644,10 +648,7 @@ namespace ssms.DataClasses
 				{
                 	isConnected = true;
 				}
-				else
-				{
-					isConnected = false;
-				}
+
                 return false;
             }
 			
