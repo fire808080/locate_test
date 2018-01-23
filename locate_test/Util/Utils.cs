@@ -896,6 +896,8 @@ namespace ssms.Util
 				//连接到对应读写器上,并对读写器进行配置(一个reader配置对应一个impinj解决方案对象)
 				for (int x = 0; x < smii.Readers.Count; x++)
 				{
+					bool bProcessOk = true;
+					
 					//如果系统没有内存分配给revolution,则会抛出异常，所以在这里不需要对ir返回值进行合法性判断
 					ImpinjRevolution ir = new ImpinjRevolution();
 					
@@ -904,24 +906,32 @@ namespace ssms.Util
 					ir.Antennas = smii.Readers[x].antennas;
 					ir.iReaderType = smii.Readers[x].iReaderType;
 					ir.stBQue = stBQue;
+					ir.isConnected = false;
+					
 					//注册委托函数
-					reader_regist_delegate(ir, ir.iReaderType, dRHandler, dWHandler, dCHandler);
-
-					//连接到读写器，并进行配置					
-					if (!ir.ir_connectReader())
+					if (reader_regist_delegate(ir, ir.iReaderType, dRHandler, dWHandler, dCHandler))
 					{
-                        Log.WriteLog(LogType.Trace, "error to connect to reader[" + ir.HostName + "]");
+						//连接到读写器，并进行配置					
+						if (!ir.ir_connectReader())
+						{
+	                        Log.WriteLog(LogType.Trace, "error to connect to reader[" + ir.HostName + "]");
+							bProcessOk = false;
+						}
+						else
+						{
+	                        Log.WriteLog(LogType.Trace, "success to connect to reader[" + ir.HostName + "]");
+						}
 					}
 					else
 					{
-                        Log.WriteLog(LogType.Trace, "success to connect to reader[" + ir.HostName + "]");
+						bProcessOk = false;
 					}
 
 					//读写器控制节点加入数组
 					impinjrev.Add(ir);
 
 					//根据本节点的操作，决定全局操作标志位
-					if (!ir.isConnected)
+					if (!bProcessOk)
 					{
 						if (bAllConnected == true)
 						{
