@@ -45,8 +45,8 @@
             this.tProduceName = new System.Windows.Forms.TextBox();
             this.label7 = new System.Windows.Forms.Label();
             this.tProduceBarcode = new System.Windows.Forms.TextBox();
-            this.label2 = new System.Windows.Forms.Label();
-            this.tEpc = new System.Windows.Forms.TextBox();
+            this.lBaseEpc = new System.Windows.Forms.Label();
+            this.tBasicEpc = new System.Windows.Forms.TextBox();
             this.SuspendLayout();
             // 
             // bAddBrand
@@ -236,33 +236,33 @@
             this.tProduceBarcode.Size = new System.Drawing.Size(245, 26);
             this.tProduceBarcode.TabIndex = 277;
             // 
-            // label2
+            // lBaseEpc
             // 
-            this.label2.AutoSize = true;
-            this.label2.Font = new System.Drawing.Font("Arial", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.label2.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
-            this.label2.Location = new System.Drawing.Point(16, 135);
-            this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(45, 19);
-            this.label2.TabIndex = 282;
-            this.label2.Text = "Epc:";
-            this.label2.Click += new System.EventHandler(this.label2_Click);
+            this.lBaseEpc.AutoSize = true;
+            this.lBaseEpc.Font = new System.Drawing.Font("Arial", 12F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.lBaseEpc.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
+            this.lBaseEpc.Location = new System.Drawing.Point(16, 135);
+            this.lBaseEpc.Name = "lBaseEpc";
+            this.lBaseEpc.Size = new System.Drawing.Size(88, 19);
+            this.lBaseEpc.TabIndex = 282;
+            this.lBaseEpc.Text = "BasicEpc:";
             // 
-            // tEpc
+            // tBasicEpc
             // 
-            this.tEpc.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.tEpc.Location = new System.Drawing.Point(197, 135);
-            this.tEpc.Name = "tEpc";
-            this.tEpc.Size = new System.Drawing.Size(245, 26);
-            this.tEpc.TabIndex = 283;
+            this.tBasicEpc.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.tBasicEpc.Location = new System.Drawing.Point(197, 135);
+            this.tBasicEpc.MaxLength = 8;
+            this.tBasicEpc.Name = "tBasicEpc";
+            this.tBasicEpc.Size = new System.Drawing.Size(245, 26);
+            this.tBasicEpc.TabIndex = 283;
             // 
             // AddProduct
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 12F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.Color.White;
-            this.Controls.Add(this.tEpc);
-            this.Controls.Add(this.label2);
+            this.Controls.Add(this.tBasicEpc);
+            this.Controls.Add(this.lBaseEpc);
             this.Controls.Add(this.tProduceName);
             this.Controls.Add(this.label7);
             this.Controls.Add(this.tProduceDesc);
@@ -306,7 +306,7 @@
         private System.Windows.Forms.TextBox tProduceName;
         private System.Windows.Forms.Label label7;
         private System.Windows.Forms.TextBox tProduceBarcode;
-        private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.TextBox tEpc;
+        private System.Windows.Forms.Label lBaseEpc;
+        private System.Windows.Forms.TextBox tBasicEpc;
     }
 }

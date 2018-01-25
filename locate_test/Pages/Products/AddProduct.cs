@@ -22,6 +22,7 @@ namespace ssms.Pages.Products
 			this.tProduceName.Clear();
             this.tProduceDesc.Clear();
             this.tProduceBarcode.Clear();
+			this.tBasicEpc.Clear();
 		}
 
 		
@@ -50,7 +51,7 @@ namespace ssms.Pages.Products
 
 		/*添加product到数据库*/
 		private int addProduct(string sProductName, string sProductDesc, int iBarcodeId, 
-			int iBrandId, int iCategoryId, ref int iID)
+			int iBrandId, int iCategoryId, ref int iID, string sBasicEpc)
         {
 
 			
@@ -60,9 +61,11 @@ namespace ssms.Pages.Products
 			stProduct.CategoryID = iCategoryId;
 			stProduct.ProductName = sProductName;
 			stProduct.ProductDescription = sProductDesc;
+            stProduct.BasicEpc = sBasicEpc;
 			
-			
+			Log.WriteLog(LogType.Trace, "test22 the basic epc is ["+ sBasicEpc+"], the product epc is "+stProduct.BasicEpc+".");
 
+			
             /*category添加到数据库*/
             iID = DAT.DataAccess.AddProduct(stProduct);
 			if (iID !=-1)
@@ -73,7 +76,7 @@ namespace ssms.Pages.Products
 			}
 			else
 			{
-                Log.WriteLog(LogType.Error, "error to insert barcode with name[" + sProductName + "] into db.");
+                Log.WriteLog(LogType.Error, "error to insert product with name[" + sProductName + "] into db.");
                 
 				return 0;
 			}
@@ -225,7 +228,13 @@ namespace ssms.Pages.Products
                 return;
             }
 
-
+            /*判断basic epc的合法性*/
+            if (tBasicEpc.Text.Length == 0 || !ParamValid.IsNumAndEnCh(tBasicEpc.Text))
+            {
+                Log.WriteLog(LogType.Trace, "the produce basic epc[" + tBasicEpc.Text + "] must be char and digit string");
+                MessageBox.Show("the produce basic epc[" + tBasicEpc.Text + "] must be char and digit string");
+                return;
+            }
 				
             /*去重*/
             if (comboBoxBrand.SelectedIndex > -1 && comboBoxCategory.SelectedIndex > -1)
@@ -308,16 +317,23 @@ namespace ssms.Pages.Products
                     }
                 }
 			#endif
+
+				Log.WriteLog(LogType.Trace, "test11 the basic epc is ["+  tBasicEpc.Text+"].");
+			
 				/*将produce信息添加到数据库*/
-				if (0 != addProduct(tProduceName.Text, tProduceDesc.Text, iBarcodeID, iBrandId, iCategoryId,ref iProduceId))
+				if (0 != addProduct(tProduceName.Text, tProduceDesc.Text, iBarcodeID, iBrandId, iCategoryId,ref iProduceId, tBasicEpc.Text))
 				{
 					MessageBox.Show("success to add product name[" + tProduceName.Text + "] into db.");
 					cleardata();
 				}
 				else
 				{
+					Log.WriteLog(LogType.Trace, "test222 the basic epc is ["+  tBasicEpc.Text+"].");
+
+					
 					/*删除上面建立的barcode记录*/
 					Db.BarcodeDelRecode(iBarcodeID);
+					MessageBox.Show("error to add product with name[" + tProduceName.Text + "] into db.");
 				}
             }
         }

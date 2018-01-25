@@ -437,5 +437,9 @@ namespace ssms.Pages.Products
                 MessageBox.Show("please input the name and description");
             }
         }
+
+
+
+
     }
 }

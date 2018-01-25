@@ -339,7 +339,6 @@
             this.lSettingsMsg.Size = new System.Drawing.Size(92, 16);
             this.lSettingsMsg.TabIndex = 342;
             this.lSettingsMsg.Text = "settings is null";
-            this.lSettingsMsg.Visible = false;
             this.lSettingsMsg.Click += new System.EventHandler(this.label9_Click);
             // 
             // ScanItemsInStore

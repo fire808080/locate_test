@@ -46,7 +46,7 @@ namespace ssms.Pages.Items
 		//设置控件可用性
 		private bool scanItem_chgOper(int iOper)
         {
-        	Log.WriteLog(LogType.Trace, "come in scanItem_chgOper");
+        	Log.WriteLog(LogType.Trace, "come in scanItem_chgOper, the iOper is "+iOper+"");
 
             switch(iOper)
             {
@@ -67,7 +67,7 @@ namespace ssms.Pages.Items
 					lStop.Visible = false;
 					
 					bBack.Enabled = true;
-						
+					
                 }
                 break;
 
@@ -91,6 +91,8 @@ namespace ssms.Pages.Items
 
 					
 					bBack.Enabled = false;
+
+                    
 					
                 }
                 break;
@@ -623,16 +625,22 @@ namespace ssms.Pages.Items
             {
             	
 				scanItem_chgOper(Macro.SCANITEM_OPR_CONNECTING);
+				((Form1)this.Parent.Parent.Parent.Parent).scan = true;
+				
 				//if (!Rfid.reader_connectReader(gstSettings.StoreID, gstSettings.SettingsID, impinjrev, ir_handler_readTag, null, null, false))
 				if (!Rfid.reader_connectReader(gstSettings.StoreID, gstSettings.SettingsID, impinjrev, gstBQue, null, null, null, false))   
 				{
 					Log.WriteLog(LogType.Error, "error to call reader_connectReader");
 
 					scanItem_chgOper(Macro.SCANITEM_OPR_NOTCONNECT);
+					((Form1)this.Parent.Parent.Parent.Parent).scan = false;
 					
 					return;
 				}
 				scanItem_chgOper(Macro.SCANITEM_OPR_CONNECTED);
+
+				 
+				 
 				
 			}
 			else
@@ -645,7 +653,7 @@ namespace ssms.Pages.Items
 
         private void scanItem_start_click(object sender, EventArgs e)
         {
-        	Log.WriteLog(LogType.Trace, "come ni scanItem_start_click");
+        	Log.WriteLog(LogType.Trace, "come in scanItem_start_click");
 
 
             scanItem_chgOper(Macro.SCANITEM_OPR_STARTING);
@@ -682,12 +690,26 @@ namespace ssms.Pages.Items
                 lStop.Visible = true;
                 lStop.Text = "Stopping...";
 
+				#if false
                 for (int i = 0; i < impinjrev.Count; i++)
                 {
                     impinjrev[i].ir_stopRead();
                     impinjrev[i].ir_disconnect();
                 }
-                lStop.Text = "Stopped and Disconnected...";
+				#else
+				if (Rfid.reader_disconnect(impinjrev))
+				{
+					lStop.Text = "Stopped and Disconnected...";
+				}
+				else
+				{
+					Log.WriteLog(LogType.Error, "error to call Rfid.reader_disconnect");
+					lStop.Text = "error to stopped and disconnected from reader";
+					return;
+				}
+				#endif
+				
+                
                 lConnect.Visible = false;
                 lStart.Visible = false;
                 ((Form1)this.Parent.Parent.Parent.Parent).scan = false;
@@ -929,14 +951,20 @@ namespace ssms.Pages.Items
 		/*把tag信息显示到前端*/
 		private bool ir_show_tagInfo(TagInfo stTagInfo, bool bOk)
 		{
+			Log.WriteLog(LogType.Trace, "come in ir_show_tagInfo");
+			
 			string sTagInfo = "Tid: "+stTagInfo.sTid +" Epc: " + stTagInfo.sEpc;
-
+			
 			if (bOk == true)
 			{
+				Log.WriteLog(LogType.Trace, "goto to show["+sTagInfo+"] in ok route.");
+				
 				lbItems.Items.Add(sTagInfo);
 			}
 			else
 			{
+				Log.WriteLog(LogType.Trace, "goto to show["+sTagInfo+"] in wrong route.");
+				
 				lbxMissing.Items.Add(sTagInfo);
 			}
 
@@ -974,7 +1002,7 @@ namespace ssms.Pages.Items
 			/*====================插入读队列====================*/
 			/*插入fifo队列*/
 			stRQue.Enqueue(stTagInfo);
-			Log.WriteLog(LogType.Trace, "success to add tag["+stTagInfo.sTid+"] into queue");
+			Log.WriteLog(LogType.Trace, "success to add tag["+stTagInfo.sTid+"] into read queue");
 			//释放临界资源
             stMutex.ReleaseMutex();
 
@@ -1086,7 +1114,7 @@ namespace ssms.Pages.Items
         {
         	Log.WriteLog(LogType.Trace, "come in ir_reader_checkTag");
 
-			Log.WriteLog(LogType.Trace, "the trigger tag id is "+sTagId+", and the confirm epc is "+sEpc+"");
+			Log.WriteLog(LogType.Trace, "the trigger tag id is "+sTagId+", and the trigger epc is "+sEpc+"");
 
 			stWMutex.WaitOne();
 

@@ -261,7 +261,7 @@ namespace ssms.DataClasses
 				settings.AutoStop.Mode = AutoStopMode.GpiTrigger;
 				settings.AutoStop.GpiPortNumber = 1;
 				settings.AutoStop.GpiLevel = false;
-
+				
 				if (Macro.USE_OPTIMIZE_READ == 1)
 				{
 					// Create a tag read operation for TID memory.
@@ -915,7 +915,7 @@ namespace ssms.DataClasses
 					stStatInfo.iDuplicateCheckCnt ++;
 					iRet = Macro.TAG_IN_DUPLICATE;
 					
-					Log.WriteLog(LogType.Trace, "the tag["+sTagId+"] has been read before in check process.");					
+					Log.WriteLog(LogType.Trace, "the tag["+sTagId+"] has been read before in check process, the step in memery is["+stBQue.stDeduplicateDic[sTagId]+"] not equal ["+Macro.TAG_DEDUPLICATE_WRITE+"].");					
 				}
 			}
 			catch (System.Exception e)
@@ -1476,7 +1476,7 @@ namespace ssms.DataClasses
 
 					if (stRRet.Result != ReadResultStatus.Success)
 					{
-                        Log.WriteLog(LogType.Error, "read operation failed : {" + stRRet.Result + "} in read process.");
+                        Log.WriteLog(LogType.Error, "read operation with op id["+stRRet.OpId+"] failed : {" + stRRet.Result + "} in read process.");
 						continue;
 					}
 								
@@ -1521,7 +1521,7 @@ namespace ssms.DataClasses
 
 					if (stRResult.Result != ReadResultStatus.Success)
 					{
-                        Log.WriteLog(LogType.Error, "read operation failed : {" + stRResult.Result + "} in write process.");
+                        Log.WriteLog(LogType.Error, "read operation with op id["+stRResult.OpId+"] failed : {" + stRResult.Result + "} in write process.");
 						continue;
 					}
 										
@@ -1537,7 +1537,7 @@ namespace ssms.DataClasses
 
 					if (stWResult.Result != WriteResultStatus.Success)
 					{
-                        Log.WriteLog(LogType.Error, "write operation failed : {" + stWResult.Result + "} in write process.");
+                        Log.WriteLog(LogType.Error, "write operation with op id["+stWResult.OpId+"] failed : {" + stWResult.Result + "} in write process.");
 						continue;
 					}
 										
@@ -1572,10 +1572,10 @@ namespace ssms.DataClasses
                 if (stRet is TagReadOpResult)
                 {
                     TagReadOpResult stCRet = stRet as TagReadOpResult;
-
+                    
 					if (stCRet.Result != ReadResultStatus.Success)
 					{
-                        Log.WriteLog(LogType.Error, "read operation failed : {" + stCRet.Result + "} in check process.");
+                        Log.WriteLog(LogType.Error, "read operation with op id["+stCRet.OpId+"] failed : {" + stCRet.Result + "} in check process.");
 						continue;
 					}
 										
@@ -1612,16 +1612,29 @@ namespace ssms.DataClasses
 	                {
 	                    // Cast it to the correct type.
 	                    TagWriteOpResult writeResult = result as TagWriteOpResult;
+
+						if (writeResult.Result != WriteResultStatus.Success)
+						{
+
+                            Log.WriteLog(LogType.Error, "write confirm operation with op id[" + writeResult.OpId + "] failed : {" + writeResult.Result + "} in write confirm process.");
+							continue;
+						}
+											
 	                    if (writeResult.OpId == usEpcOpId)
 	                    {
 	                        
 							Log.WriteLog(LogType.Trace, "Write to EPC with op id["+usEpcOpId+"] complete, the result is "+ writeResult.Result+".");
 	                    }
-	                    else if (writeResult.OpId == usPcBitOpId)
-	                    {
-	                        
-							Log.WriteLog(LogType.Trace, "Write to PC bits with op id["+usPcBitOpId+"] complete, the result is "+writeResult.Result+".");
-	                    }
+                        else if (writeResult.OpId == usPcBitOpId)
+                        {
+
+                            Log.WriteLog(LogType.Trace, "Write to PC bits with op id[" + usPcBitOpId + "] complete, the result is " + writeResult.Result + ".");
+                        }
+                        else
+                        {
+                            Log.WriteLog(LogType.Error, "unknow op id[" + writeResult.OpId + "]");
+                            bOk = false;
+                        }
 	                    // Print out the number of words written
 
 						Log.WriteLog(LogType.Trace, "Number of words written : "+writeResult.NumWordsWritten+".");
@@ -1655,19 +1668,6 @@ namespace ssms.DataClasses
 					stBQue.stTagDic.Remove(usEpcOpId);
 					stBQue.stTagDicMutex.ReleaseMutex();
 					Log.WriteLog(LogType.Trace, "success to remove tag info from dictionary with ecp op id["+usEpcOpId+"]");
-
-
-
-
-								
-
-
-
-						
-
-
-						
-
 	            }
 			}
 			catch (Exception e)
@@ -1785,7 +1785,7 @@ namespace ssms.DataClasses
 				usEpcOpId = usTmpEpcOpId;
 				usPcBitOpId = usTmpPcBitOpId;
 
-                
+   
             }
 			
 			//再次接收tag report

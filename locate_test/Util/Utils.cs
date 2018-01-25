@@ -734,7 +734,7 @@ namespace ssms.Util
 
 		//所有读写器去连接
 		//private static bool reader_disconnect(ref List<ImpinjRevolution> lsImpinjRev)
-		private static bool reader_disconnect(List<ImpinjRevolution> lsImpinjRev)
+		public static bool reader_disconnect(List<ImpinjRevolution> lsImpinjRev)
 		{
 			Log.WriteLog(LogType.Trace, "come reader_disconnect");
 
@@ -769,6 +769,7 @@ namespace ssms.Util
 			catch (Exception ex)
 			{
 				Log.WriteLog(LogType.Error, "error to disconnect impinj resolution reader, the error msg is "+ex.Message.ToString()+"");
+				return false;
 			}
 			return true;
 		}
@@ -891,8 +892,11 @@ namespace ssms.Util
 			
 			Log.WriteLog(LogType.Trace, "come reader_connect_handler");
 
+			
 			try
 			{
+				impinjrev.Clear(); //初始化解决方案数组；
+				
 				//连接到对应读写器上,并对读写器进行配置(一个reader配置对应一个impinj解决方案对象)
 				for (int x = 0; x < smii.Readers.Count; x++)
 				{
@@ -1052,7 +1056,8 @@ namespace ssms.Util
 		{
             Log.WriteLog(LogType.Trace, "come in reader_start_read");
 			string sReaderIp = "";
-
+			bool bOk = true;
+			
 			try
 			{
 				impinjrev.ForEach(imp =>
@@ -1063,8 +1068,18 @@ namespace ssms.Util
 					{
 						if (reader_has_delegate(imp))
 						{
-							imp.ir_startRead();
-							Log.WriteLog(LogType.Trace, "success to start reader["+imp.HostName+"], with operation type["+imp.iReaderType+"].");
+							if (!imp.ir_startRead())
+							{
+								Log.WriteLog(LogType.Trace, "error to start reader["+imp.HostName+"], with operation type["+imp.iReaderType+"].");
+								if (bOk)
+								{
+									bOk = false;
+								}
+							}
+							else
+							{
+								Log.WriteLog(LogType.Trace, "success to start reader["+imp.HostName+"], with operation type["+imp.iReaderType+"].");
+							}
 						}
 						
 					}
@@ -1072,6 +1087,11 @@ namespace ssms.Util
 					{
 						Log.WriteLog(LogType.Error, "error to regist reader["+imp.HostName+"] delegate function with operation type["+imp.iReaderType+"]");
 						MessageBox.Show("error to regist reader["+imp.HostName+"] delegate function with operation type["+imp.iReaderType+"]");
+
+						if (bOk)
+						{
+							bOk = false;
+						}
 					}					
 				});
 			}
@@ -1081,7 +1101,15 @@ namespace ssms.Util
 				return false;
 			}
 
-			return true;	
+			if (bOk)
+			{
+				//只有所有的读写器都连接成功，连接操作才算成功。
+				return true;
+			}
+			else
+			{
+				return false;
+			}
 		}
 	}
 
